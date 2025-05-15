@@ -6,14 +6,6 @@ import plotly.express as px
 import numpy as np
 import matplotlib.pyplot as plt 
 
-
-# Page configuration
-st.set_page_config(
-    page_title="2025 NG KPI Dashboard",
-    page_icon="🏂 :pdo-ng:"
-    layout="wide",
-    initial_sidebar_state="expanded")
-
 # Streamlit app Title
 st.title('Hydraulic Fracturing - Proppant Fill Calculator')
 
