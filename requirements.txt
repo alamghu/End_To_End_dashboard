@@ -1,2 +1,6 @@
 streamlit
 pandas
+ altair
+plotly.express
+numpy
+matplotlib.pyplot
