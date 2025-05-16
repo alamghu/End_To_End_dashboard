@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 ####################
 # Streamlit app Title
-st.title('End To End Dashboard)
+st.title('End To End Dashboard')
 ####################
 # Side Bar Title
 st.sidebar.title('Input')
