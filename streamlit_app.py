@@ -14,19 +14,19 @@ alt.themes.enable("dark")
 
 
 # Define well names
-wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
+wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
-processes = [
-    "WLCTF_ UWO ➜ GGO",
-    "Standalone Activity",
-    "On Plot HookUp",
-    "Pre-commissioning",
+processes = ["Rig Release",
+    "Handover WLCTF from UWO to GGO",
+    "Standalone Activity (SCMT Execution)",
+    "On Plot Mechanical Completion",
+    "Pre-commissioning (up to SOF)",
     "Unhook",
-    "WLCTF_ GGO ➜ UWIF",
-    "Waiting on IFS Resources",
+    "Handover WLCTF from GGO to UWI",
+    "Waiting on shared IFS resources",
     "Frac Execution",
-    "Re-Hook & commissioning",
+    "Re-Hook and commissioning (eSOF)",
     "Plug Removal",
     "On stream"
 ]
@@ -110,6 +110,36 @@ else:
     col2.write("Enter dates to generate the comparison chart.")
 
 # Column 3: Gaps, Lagging, and Leading
+col3.header("Progress Overview")
+
+# Data for progress tracking
+progress_data = []
+for well, well_data in st.session_state['data'].items():
+    rig_release_start = well_data['Rig Release']['start']
+    on_stream_end = well_data['On stream']['end']
+    if rig_release_start and on_stream_end:
+        total_days = max((on_stream_end - rig_release_start).days, 1)
+        progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
+        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
+
+# Create DataFrame for progress tracking
+progress_df = pd.DataFrame(progress_data)
+
+if not progress_df.empty:
+    col3.dataframe(
+        progress_df,
+        use_container_width=True,
+        column_config={
+            "Progress": st.column_config.ProgressColumn(
+                min_value=0,
+                max_value=100,
+                format="{:.1f}%",
+                label="Completion"
+            )
+        }
+    )
+else:
+    col3.write("No data available for progress tracking.")
 col3.header("Gaps, Lagging, and Leading")
 
 # Gap Analysis
