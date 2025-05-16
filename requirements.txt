@@ -1,7 +1,4 @@
-streamlit
-pandas
- altair
-plotly.express
 numpy
-matplotlib.pyplot
-plotly
+matplotlib
+pandas
+streamlit
