@@ -31,7 +31,6 @@ processes = ["Rig Release",
 ]
 ####################################################################
 
-
 # Data storage
 if 'data' not in st.session_state:
     st.session_state['data'] = {well: {process: {'start': None, 'end': None} for process in processes} for well in wells}
@@ -57,18 +56,7 @@ with rig_release_col2:
 st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 
-# Rig Release Input - Side-by-Side Layout
-st.sidebar.markdown("**Rig Release Date**")
-rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
-with rig_release_col1:
-    st.write("Date")
-with rig_release_col2:
-    rig_release_date = st.date_input(
-        "Rig Release",
-        value=st.session_state['data'][selected_well]['Rig Release']['start'],
-        label_visibility="collapsed"
-    )
-st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
+
 
 # Ensure that when a new well is selected, date inputs are cleared
 for process in [p for p in processes if p != 'Rig Release']:
