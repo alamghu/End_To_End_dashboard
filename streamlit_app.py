@@ -12,24 +12,24 @@ st.set_page_config(
 
 alt.themes.enable("dark")
 
-
 # Define well names
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
 processes = ["Rig Release",
-    "Handover WLCTF from UWO to GGO",
-    "Standalone Activity (SCMT Execution)",
-    "On Plot Mechanical Completion",
-    "Pre-commissioning (up to SOF)",
+    "WLCTF_ UWO ➜ GGO",
+    "Standalone Activity",
+    "On Plot Hookup",
+    "Pre-commissioning",
     "Unhook",
-    "Handover WLCTF from GGO to UWI",
-    "Waiting on shared IFS resources",
+    "WLCTF_GGO ➜ UWIF",
+    "Waiting IFS Resources",
     "Frac Execution",
-    "Re-Hook and commissioning (eSOF)",
+    "Re-Hook & commissioning",
     "Plug Removal",
     "On stream"
 ]
+####################################################################
 
 # Data storage
 if 'data' not in st.session_state:
@@ -40,6 +40,34 @@ st.sidebar.header("Well Selection and Data Entry")
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
+
+# Rig Release as a single input
+st.sidebar.markdown("**Rig Release Date**")
+rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 2])
+with rig_release_col1:
+    st.write("Date")
+with rig_release_col2:
+    rig_release_date = st.date_input(
+        "Rig Release Date",
+        value=st.session_state['data'][selected_well]['Rig Release']['start'],
+        label_visibility="collapsed"
+    )
+
+st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
+st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
+
+# Rig Release Input - Side-by-Side Layout
+st.sidebar.markdown("**Rig Release Date**")
+rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
+with rig_release_col1:
+    st.write("Date")
+with rig_release_col2:
+    rig_release_date = st.date_input(
+        "Rig Release",
+        value=st.session_state['data'][selected_well]['Rig Release']['start'],
+        label_visibility="collapsed"
+    )
+st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 
 # Ensure that when a new well is selected, date inputs are cleared
 for process in processes:
@@ -109,10 +137,71 @@ if not chart_df.empty:
 else:
     col2.write("Enter dates to generate the comparison chart.")
 
-# Column 3: Gaps, Lagging, and Leading
+# Column 3: Progress Overview
+col3.header("Progress Overview")
+
+progress_data = []
+for well, well_data in st.session_state['data'].items():
+    rig_release_start = well_data['Rig Release']['start']
+    on_stream_end = well_data['On stream']['end']
+    if rig_release_start and on_stream_end:
+        total_days = max((on_stream_end - rig_release_start).days, 1)
+        progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
+        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
+
+progress_df = pd.DataFrame(progress_data)
+
+if not progress_df.empty:
+    with col3:
+        st.markdown("#### Top Wells")
+        st.dataframe(
+            progress_df,
+            column_order=["Well", "Total Days", "Progress"],
+            hide_index=True,
+            width=None,
+            column_config={
+                "Well": st.column_config.TextColumn("Well"),
+                "Progress": st.column_config.ProgressColumn(
+                    "Completion",
+                    format="{:.1f}%",
+                    min_value=0,
+                    max_value=100
+                )
+            }
+        )
+else:
+    col3.write("No data available for progress tracking.")
 col3.header("Progress Overview")
 
 # Data for progress tracking
+col3.markdown("### Progress Overview")
+
+progress_data = []
+for well, well_data in st.session_state['data'].items():
+    rig_release_start = well_data['Rig Release']['start']
+    on_stream_end = well_data['On stream']['end']
+    if rig_release_start and on_stream_end:
+        total_days = max((on_stream_end - rig_release_start).days, 1)
+        progress_percentage = min((total_days / 120) * 100, 100)
+        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
+
+progress_df = pd.DataFrame(progress_data)
+
+if not progress_df.empty:
+    col3.dataframe(
+        progress_df,
+        use_container_width=True,
+        column_config={
+            "Progress": st.column_config.ProgressColumn(
+                min_value=0,
+                max_value=100,
+                format="{:.1f}%",
+                label="Completion"
+            )
+        }
+    )
+else:
+    col3.write("No data available for progress tracking.")
 progress_data = []
 for well, well_data in st.session_state['data'].items():
     rig_release_start = well_data['Rig Release']['start']
