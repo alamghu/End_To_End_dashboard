@@ -136,9 +136,10 @@ for well, well_data in st.session_state['data'].items():
     on_stream_end = well_data['On stream']['end']
     if rig_release_start and on_stream_end:
         total_days = max((on_stream_end - rig_release_start).days, 1)
-        completion_days = 120 - total_days
-        progress_percentage = min((total_days / 120) * 100, 100)
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage})
+        completion_days = total_days - 120
+        progress_percentage = (total_days / 120) * 100
+        progress_color = "green" if total_days <= 120 else "red"
+        progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage, "Color": progress_color})
 
     # Gap Analysis for selected well
     if well == selected_well:
@@ -160,9 +161,10 @@ if not progress_df.empty:
         column_config={
             "Progress": st.column_config.ProgressColumn(
                 min_value=0,
-                max_value=100,
+                max_value=progress_df['Progress'].max(),
                 format="{:.1f}%",
-                label="Completion"
+                label="Completion",
+                color=("#FF6347" if progress_df['Total Days'].max() > 120 else "#32CD32")
             )
         }
     )
