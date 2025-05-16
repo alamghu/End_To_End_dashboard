@@ -18,15 +18,15 @@ wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", 
 
 # Define process stages
 processes = [
-    "Handover WLCTF from UWO to GGO",
-    "Standalone Activity (SCMT Execution)",
-    "On Plot Mechanical Completion",
-    "Pre-commissioning (up to SOF)",
+    "WLCTF_ UWO ╰┈➤ GGO",
+    "Standalone Activity",
+    "On Plot HookUp",
+    "Pre-commissioning",
     "Unhook",
-    "Handover WLCTF from GGO to UWI",
-    "Waiting on shared IFS resources",
+    "WLCTF_ GGO ╰┈➤ UWIF",
+    "Waiting on IFS Resources",
     "Frac Execution",
-    "Re-Hook and commissioning (eSOF)",
+    "Re-Hook & commissioning",
     "Plug Removal",
     "On stream"
 ]
