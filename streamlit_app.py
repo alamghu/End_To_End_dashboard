@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import date
+import altair as alt
 import plotly.express as px
 
 st.set_page_config(
@@ -9,6 +10,8 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded")
+
+alt.themes.enable("dark")
 
 # Database setup
 DB_PATH = 'tracking_data.db'
@@ -47,8 +50,7 @@ role = USERS[username]
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
-processes = [
-    "Rig Release",
+processes = ["Rig Release",
     "WLCTF_ UWO ➜ GGO",
     "Standalone Activity",
     "On Plot Hookup",
@@ -62,105 +64,81 @@ processes = [
     "On stream"
 ]
 
-def load_well_dates(well):
-    """Load process dates from DB into session_state for the selected well."""
-    for process in processes:
-        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, process))
-        row = c.fetchone()
-        if row:
-            start = pd.to_datetime(row[0]).date() if row[0] else None
-            end = pd.to_datetime(row[1]).date() if row[1] else None
-            st.session_state[f"start_{process}"] = start
-            st.session_state[f"end_{process}"] = end
-        else:
-            st.session_state[f"start_{process}"] = None
-            st.session_state[f"end_{process}"] = None
-
-# Well selection
+# Layout
+st.sidebar.header("Well Selection and Data Entry")
+previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
+st.session_state['selected_well'] = selected_well
 
-# Load data on well switch
-if ('loaded_well' not in st.session_state) or (st.session_state['loaded_well'] != selected_well):
-    st.session_state['loaded_well'] = selected_well
-    load_well_dates(selected_well)
+# Clear unsaved data entries if a new well is selected
+if previous_well != selected_well:
+    for process in processes:
+        key_start = f"start_{process}"
+        key_end = f"end_{process}"
+        # Load saved data from DB for selected well and process
+        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+        result = c.fetchone()
+        if result:
+            start_val = pd.to_datetime(result[0]).date() if result[0] else None
+            end_val = pd.to_datetime(result[1]).date() if result[1] else None
+        else:
+            start_val = None
+            end_val = None
 
-# Sidebar inputs for Rig Release (single date)
-st.sidebar.markdown("### Rig Release Date")
-rig_release_key = "start_Rig Release"
-rig_release_date = st.sidebar.date_input(
-    "Rig Release",
-    value=st.session_state.get(rig_release_key, date.today()),
-    key=rig_release_key,
-    help="Enter Rig Release Date"
-)
+        # If session state has unsaved changes (i.e. different from DB), clear them
+        # For simplicity, always reset widget state to saved DB values or None
+        st.session_state[key_start] = start_val
+        st.session_state[key_end] = end_val
 
-# Save Rig Release immediately
-c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)', (selected_well, "Rig Release", rig_release_date.isoformat(), rig_release_date.isoformat()))
-conn.commit()
-st.session_state[rig_release_key] = rig_release_date
-st.session_state[f"end_Rig Release"] = rig_release_date  # end = start for Rig Release
-
-# Only entry role can input process dates
 if role == "entry":
-    st.sidebar.markdown("### Process Dates Entry")
+    # Rig Release - Single Date Input
+    rig_release_key = "rig_release"
+    default_rig_release = st.session_state.get(rig_release_key, date.today())
+    rig_release_date = st.sidebar.date_input(
+        "Rig Release",
+        value=default_rig_release,
+        key=rig_release_key,
+        help="Enter Rig Release Date"
+    )
 
+    # Save Rig Release immediately (start_date = end_date for rig release)
+    c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
+              (selected_well, "Rig Release", rig_release_date.isoformat(), rig_release_date.isoformat()))
+    conn.commit()
+
+    # Also keep end date session state consistent for Rig Release
+    st.session_state[f"end_Rig Release"] = rig_release_date
+
+    # Process Data Entry for other processes
     for process in processes[1:]:
+        key_start = f"start_{process}"
+        key_end = f"end_{process}"
+        st.sidebar.markdown(f"**{process}**")
         col_start, col_end = st.sidebar.columns(2)
-        start_key = f"start_{process}"
-        end_key = f"end_{process}"
-
-        # Get current values or None
-        start_val = st.session_state.get(start_key, None)
-        end_val = st.session_state.get(end_key, None)
 
         with col_start:
-            start_date = st.date_input(
-                f"Start\n{process}",
-                value=start_val if start_val else None,
-                key=start_key,
-                help="Add a date" if start_val is None else None
-            )
+            # Provide default value from session state or fallback
+            default_start = st.session_state.get(key_start, None)
+            start_date = st.date_input(f"Start - {process}", value=default_start, key=key_start)
 
         with col_end:
-            # Disable end date input if no start date
-            disabled = start_date is None
-            end_date = st.date_input(
-                f"End\n{process}",
-                value=end_val if end_val else None,
-                key=end_key,
-                disabled=disabled,
-                help="Add start date first" if disabled else ("Add a date" if end_val is None else None)
-            )
+            default_end = st.session_state.get(key_end, None)
+            end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
 
-        # Validation: start must be <= end
-        if end_date is not None and start_date is not None and end_date < start_date:
-            st.sidebar.error(f"End date cannot be earlier than Start date for {process}")
-            # Reset end date to None in session state (do not save invalid)
-            st.session_state[end_key] = None
+        # Validation: Start date must be before or equal end date
+        if start_date and end_date and start_date > end_date:
+            st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
         else:
-            # Save valid dates to DB and session_state
-            if start_date is not None and end_date is not None:
-                c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)', (selected_well, process, start_date.isoformat(), end_date.isoformat()))
+            # Save to DB immediately if valid
+            if start_date and end_date:
+                c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
+                          (selected_well, process, start_date.isoformat(), end_date.isoformat()))
                 conn.commit()
-                st.session_state[start_key] = start_date
-                st.session_state[end_key] = end_date
-            elif start_date is not None and end_date is None:
-                # Save start date only with NULL end date
-                c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)', (selected_well, process, start_date.isoformat(), None))
-                conn.commit()
-                st.session_state[start_key] = start_date
-                st.session_state[end_key] = None
-            else:
-                # No start date, clear DB for this process for this well
-                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                conn.commit()
-                st.session_state[start_key] = None
-                st.session_state[end_key] = None
 
-# Layout: 3 columns with widths and gap
+# Visualization columns
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
-# --- Column 1: Well being updated (exclude Rig Release) ---
+# Column 1: Well being updated (exclude Rig Release)
 col1.header(f"Well: {selected_well}")
 for process in processes[1:]:
     c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
@@ -169,9 +147,9 @@ for process in processes[1:]:
         duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
         col1.write(f"{process}: {duration} days")
     else:
-        col1.write(f"{process}: Incomplete")
+        col1.write(f"{process}: Add dates")
 
-# --- Column 2: KPI Visualization and Comparison (exclude Rig Release) ---
+# Column 2: KPI Visualization and Comparison (exclude Rig Release)
 col2.header("KPI Visualization and Comparison")
 chart_data = []
 for well in wells:
@@ -185,51 +163,45 @@ for well in wells:
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
-    col2.plotly_chart(fig, use_container_width=True)
+    col2.plotly_chart(fig)
 
-# --- Column 3: Progress Overview & Gap Analysis ---
-
-col3.header("Progress Overview & Gaps Analysis")
+# Column 3: Progress Overview & Gap Analysis
+col3.header("Progress Overview & Gap Analysis")
 
 progress_data = []
 gap_analysis = []
-
 for well in wells:
-    # Get Rig Release and On stream dates
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
     rig_release = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+    c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
     on_stream = c.fetchone()
-
-    if rig_release and rig_release[0] and on_stream and on_stream[0]:
-        rig_date = pd.to_datetime(rig_release[0]).date()
-        on_stream_date = pd.to_datetime(on_stream[0]).date()
-        total_days = max((on_stream_date - rig_date).days, 1)
-        progress = (total_days / 120) * 100  # progress % based on 120 days target
-
-        # Color logic
-        color = "green" if total_days <= 120 else "red"
-        progress_data.append({'Well': well, 'Total Days': total_days, 'Progress %': progress, 'Color': color})
-
-        # Gap analysis: days delayed compared to 120-day target
+    if rig_release and rig_release[0] and on_stream and on_stream[1]:
+        total_days = max((pd.to_datetime(on_stream[1]) - pd.to_datetime(rig_release[0])).days, 1)
+        progress = (total_days / 120) * 100  # percentage, can go above 100%
+        color = "#32CD32" if total_days <= 120 else "#FF6347"
+        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress, "Color": color})
         gap = total_days - 120
-        gap_analysis.append({'Well': well, 'Gap (days)': gap})
+        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
+    else:
+        progress_data.append({"Well": well, "Total Days": None, "Progress": None, "Color": None})
+        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-if progress_data:
-    progress_df = pd.DataFrame(progress_data).sort_values(by='Total Days')
-    for idx, row in progress_df.iterrows():
-        col3.write(f"**{row['Well']}** - Total Days: {row['Total Days']} - Progress: {row['Progress %']:.1f}%")
-        col3.progress(min(row['Progress %'], 100), text=None)
+progress_df = pd.DataFrame(progress_data)
 
-    col3.markdown("---")
-    col3.subheader("Gap Analysis (vs 120 days target)")
-    gap_df = pd.DataFrame(gap_analysis).sort_values(by='Gap (days)', ascending=False)
-    for idx, row in gap_df.iterrows():
-        if row['Gap (days)'] > 0:
-            col3.error(f"{row['Well']} is delayed by {row['Gap (days)']} days")
-        else:
-            col3.success(f"{row['Well']} is on track or ahead")
+if not progress_df.empty:
+    # Show colored progress column
+    def color_progress(val, color):
+        return f'background-color: {color}' if color else ''
 
-# --- Footer ---
-st.markdown("---")
-st.caption(f"User: {username} (Role: {role}) | Data saved immediately | Switching wells loads saved data.")
+    # Prepare dataframe for display without the color column
+    display_df = progress_df.drop(columns=["Color"]).copy()
+    # Style the progress column with colors
+    styled_df = display_df.style.apply(
+        lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
+        axis=1
+    )
+    col3.dataframe(styled_df, use_container_width=True)
+
+col3.write("### Gap Analysis")
+for gap in gap_analysis:
+    col3.write(gap)
