@@ -72,8 +72,30 @@ st.session_state['selected_well'] = selected_well
 
 # Clear data entries if a new well is selected
 if previous_well != selected_well:
+    # Clear unsaved data for new well
+    for process in processes:
+        st.session_state[f"start_{process}"] = None
+        st.session_state[f"end_{process}"] = None
+
+    # Load saved data for the selected well
+    for process in processes:
+        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+        result = c.fetchone()
+        if result:
+            st.session_state[f"start_{process}"] = pd.to_datetime(result[0]) if result[0] else None
+            st.session_state[f"end_{process}"] = pd.to_datetime(result[1]) if result[1] else None
     # Clear session state for processes when switching wells
     for process in processes:
+        # Clear current data entries
+        st.session_state[f"start_{process}"] = None
+        st.session_state[f"end_{process}"] = None
+
+        # Load data for the selected well if available
+        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+        result = c.fetchone()
+        if result and result[0] and result[1]:
+            st.session_state[f"start_{process}"] = pd.to_datetime(result[0]) if result[0] else None
+            st.session_state[f"end_{process}"] = pd.to_datetime(result[1]) if result[1] else None
         st.session_state[f"start_{process}"] = None
         st.session_state[f"end_{process}"] = None
 
