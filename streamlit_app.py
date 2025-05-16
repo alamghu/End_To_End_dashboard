@@ -8,7 +8,7 @@ import plotly.express as px
 st.set_page_config(
     page_title="End To End Tracking Dashboard",
     page_icon="📈",
-    layout="wide", 
+    layout="wide",
     initial_sidebar_state="expanded")
 
 alt.themes.enable("dark")
@@ -30,9 +30,9 @@ conn.commit()
 
 # Define user roles
 USERS = {
-    "Ghusun64275": "entry",
-    "Maha64275": "entry",
-    "Ali64275": "entry",
+    "user1": "entry",
+    "user2": "entry",
+    "user3": "entry",
     "viewer1": "view",
     "viewer2": "view",
     "viewer3": "view"
@@ -66,7 +66,15 @@ processes = ["Rig Release",
 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
+previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
+st.session_state['selected_well'] = selected_well
+
+# Clear data entries if a new well is selected
+if previous_well != selected_well:
+    for process in processes:
+        st.session_state[f"start_{process}"] = None
+        st.session_state[f"end_{process}"] = None
 
 if role == "entry":
     # Rig Release - Single Date Input
