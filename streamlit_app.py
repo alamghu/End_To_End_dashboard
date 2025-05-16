@@ -9,8 +9,8 @@ st.title('End To End Dashboard')
 # Side Bar Title
 st.sidebar.title('Input Activity Date')
 #Select the well you are updating from the drop down list"
-PI = st.sidebar.date_input("When's PI Selected", datetime.date(2019, 7, 6))
-
+PI = st.sidebar.date_input("When's PI Selected", datetime.date(2025, 1, 6))
+st.date_input(label, value="today", min_value=None, max_value=None, key=None, help=None, on_change=None, args=None, kwargs=None, *, format="YYYY/MM/DD", disabled=False, label_visibility="visible")
 # Taking Inputs from user by number inputs
 Proppant_Specific_Gravity = st.sidebar.number_input("Proppant Specific Gravity (SG)", min_value = 1.0, max_value = 4.65, value =3.5)
 lbs_of_Proppant_in_Tubular = st.sidebar.number_input("lbs of Proppant in Tubular (lbs)", min_value = 1, max_value = 500000, value =50000)
