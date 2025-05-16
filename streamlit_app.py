@@ -4,7 +4,6 @@ import pandas as pd
 import altair as alt
 import numpy as np
 import matplotlib.pyplot as plt 
-import plotly as plty
 # Streamlit app Title
 st.title('Hydraulic Fracturing - Proppant Fill Calculator')
 
