@@ -60,7 +60,7 @@ st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 st.sidebar.markdown("**Rig Release Date**")
 rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
 with rig_release_col1:
-    st.write("Date")
+    st.write("")
 with rig_release_col2:
     rig_release_date = st.date_input(
         "Rig Release",
