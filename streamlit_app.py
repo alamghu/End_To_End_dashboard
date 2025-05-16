@@ -2,7 +2,13 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="End To End Tracking Dashboard",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded")
+
+alt.themes.enable("dark")
 
 # Define well names
 wells = [f"Well {chr(65 + i)}" for i in range(10)]
