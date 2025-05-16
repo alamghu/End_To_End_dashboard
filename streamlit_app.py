@@ -27,7 +27,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS process_data (
     PRIMARY KEY (well, process)
 )''')
 conn.commit()
-
+#############################
 # Define user roles
 USERS = {
     "user1": "entry",
@@ -45,7 +45,7 @@ if username not in USERS:
     st.stop()
 
 role = USERS[username]
-
+##################################
 # Define well names
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
