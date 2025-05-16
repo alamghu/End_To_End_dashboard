@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded")
 
-alt.themes.enable("dark") 
+alt.themes.enable("dark")
 
 # Database setup
 DB_PATH = 'tracking_data.db'
@@ -27,7 +27,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS process_data (
     PRIMARY KEY (well, process)
 )''')
 conn.commit()
-#############################
+
 # Define user roles
 USERS = {
     "user1": "entry",
@@ -45,7 +45,7 @@ if username not in USERS:
     st.stop()
 
 role = USERS[username]
-##################################
+
 # Define well names
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
@@ -72,6 +72,18 @@ st.session_state['selected_well'] = selected_well
 
 # Clear data entries if a new well is selected
 if previous_well != selected_well:
+    # Clear session state for processes when switching wells
+    for process in processes:
+        st.session_state[f"start_{process}"] = None
+        st.session_state[f"end_{process}"] = None
+
+    # Load data for the selected well if available
+    for process in processes:
+        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+        result = c.fetchone()
+        if result:
+            st.session_state[f"start_{process}"] = pd.to_datetime(result[0]) if result[0] else None
+            st.session_state[f"end_{process}"] = pd.to_datetime(result[1]) if result[1] else None
     for process in processes:
         st.session_state[f"start_{process}"] = None
         st.session_state[f"end_{process}"] = None
