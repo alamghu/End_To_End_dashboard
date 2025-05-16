@@ -4,3 +4,4 @@ pandas
 plotly.express
 numpy
 matplotlib.pyplot
+plotly
