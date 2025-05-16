@@ -148,69 +148,6 @@ for well, well_data in st.session_state['data'].items():
     if rig_release_start and on_stream_end:
         total_days = max((on_stream_end - rig_release_start).days, 1)
         progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
-        if process != 'Rig Release':
-                progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
-
-progress_df = pd.DataFrame(progress_data)
-
-if not progress_df.empty:
-    with col3:
-        st.markdown("#### Top Wells")
-        st.dataframe(
-            progress_df,
-            column_order=["Well", "Total Days", "Progress"],
-            hide_index=True,
-            width=None,
-            column_config={
-                "Well": st.column_config.TextColumn("Well"),
-                "Progress": st.column_config.ProgressColumn(
-                    "Completion",
-                    format="{:.1f}%",
-                    min_value=0,
-                    max_value=100
-                )
-            }
-        )
-else:
-    col3.write("No data available for progress tracking.")
-col3.header("Progress Overview")
-
-# Data for progress tracking
-col3.markdown("### Progress Overview")
-
-progress_data = []
-for well, well_data in st.session_state['data'].items():
-    rig_release_start = well_data['Rig Release']['start']
-    on_stream_end = well_data['On stream']['end']
-    if rig_release_start and on_stream_end:
-        total_days = max((on_stream_end - rig_release_start).days, 1)
-        progress_percentage = min((total_days / 120) * 100, 100)
-        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
-
-progress_df = pd.DataFrame(progress_data)
-
-if not progress_df.empty:
-    col3.dataframe(
-        progress_df,
-        use_container_width=True,
-        column_config={
-            "Progress": st.column_config.ProgressColumn(
-                min_value=0,
-                max_value=100,
-                format="{:.1f}%",
-                label="Completion"
-            )
-        }
-    )
-else:
-    col3.write("No data available for progress tracking.")
-progress_data = []
-for well, well_data in st.session_state['data'].items():
-    rig_release_start = well_data['Rig Release']['start']
-    on_stream_end = well_data['On stream']['end']
-    if rig_release_start and on_stream_end:
-        total_days = max((on_stream_end - rig_release_start).days, 1)
-        progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
         progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
 
 # Create DataFrame for progress tracking
@@ -242,4 +179,3 @@ for process, dates in st.session_state['data'][selected_well].items():
             col3.write(f"Error: {process} end date is before start date")
     elif not start_date or not end_date:
         col3.write(f"{process}: Dates not fully entered")
-
