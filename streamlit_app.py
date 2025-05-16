@@ -15,6 +15,15 @@ alt.themes.enable("dark")
 
 
 # Define well names
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import date
+
+st.set_page_config(layout="wide")
+
+# Define well names
 wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
 
 # Define process stages
@@ -41,23 +50,36 @@ st.sidebar.header("Well Selection and Data Entry")
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
+
+# Ensure that when a new well is selected, date inputs are cleared
 for process in processes:
+    if st.session_state['data'][selected_well][process]['start'] is None:
+        start_date = None
+    else:
+        start_date = st.session_state['data'][selected_well][process]['start']
+
+    if st.session_state['data'][selected_well][process]['end'] is None:
+        end_date = None
+    else:
+        end_date = st.session_state['data'][selected_well][process]['end']
+
     st.sidebar.markdown(f"**{process}**")
     col_start, col_end = st.sidebar.columns(2)
     with col_start:
         st.write("Start")
         start_date = st.date_input(
             f"Start - {process}",
-            value=None,
+            value=start_date,
             label_visibility="collapsed"
         )
     with col_end:
         st.write("End")
         end_date = st.date_input(
             f"End - {process}",
-            value=None,
+            value=end_date,
             label_visibility="collapsed"
         )
+
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
 
