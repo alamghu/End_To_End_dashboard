@@ -12,6 +12,9 @@ st.set_page_config(
 
 alt.themes.enable("dark")
 
+# Define well names
+wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
+
 # Define process stages
 processes = [
     "Handover WLCTF from UWO to GGO",
@@ -96,3 +99,4 @@ for process, dates in st.session_state['data'][selected_well].items():
             col3.write(f"Error: {process} end date is before start date")
     elif not start_date or not end_date:
         col3.write(f"{process}: Dates not fully entered")
+
