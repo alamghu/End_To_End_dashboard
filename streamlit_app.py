@@ -31,6 +31,7 @@ processes = ["Rig Release",
 ]
 ####################################################################
 
+
 # Data storage
 if 'data' not in st.session_state:
     st.session_state['data'] = {well: {process: {'start': None, 'end': None} for process in processes} for well in wells}
@@ -137,7 +138,7 @@ for well, well_data in st.session_state['data'].items():
     rig_release_start = well_data['Rig Release']['start']
     on_stream_end = well_data['On stream']['end']
     if rig_release_start and on_stream_end:
-        total_days = max((on_stream_end - rig_release_start).days, 1)
+        total_days = max((on_stream_end - rig_release_start).days + 1, 1) if well != wells[0] else 1
         progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
         progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
 
@@ -167,6 +168,7 @@ for process, dates in st.session_state['data'][selected_well].items():
     end_date = dates['end']
     if start_date and end_date:
         if end_date < start_date:
+    col3.write(f"Error: End date for {process} cannot be before start date")
             col3.write(f"Error: {process} end date is before start date")
     elif not start_date or not end_date:
         col3.write(f"{process}: Dates not fully entered")
