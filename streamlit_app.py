@@ -16,7 +16,7 @@ alt.themes.enable("dark")
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
-processes = ["Rig Release",
+processes = [
     "WLCTF_ UWO ➜ GGO",
     "Standalone Activity",
     "On Plot Hookup",
