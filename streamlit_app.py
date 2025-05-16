@@ -1,16 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-import altair as alt
-import plotly.express as px
 
-st.set_page_config(
-    page_title="End to End Tracking Dashbord",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded")
-
-alt.themes.enable("dark")
+st.set_page_config(layout="wide")
 
 # Define well names
 wells = [f"Well {chr(65 + i)}" for i in range(10)]
@@ -34,27 +26,30 @@ processes = [
 if 'data' not in st.session_state:
     st.session_state['data'] = {well: {process: None for process in processes} for well in wells}
 
-# Well selection
-selected_well = st.selectbox("Select a Well", wells)
+# Layout
+st.sidebar.header("Well Selection and Data Entry")
+selected_well = st.sidebar.selectbox("Select a Well", wells)
 
-st.markdown(f"### Enter Dates for {selected_well}")
-
-# Date inputs
+st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 for process in processes:
-    st.session_state['data'][selected_well][process] = st.date_input(
+    st.session_state['data'][selected_well][process] = st.sidebar.date_input(
         process, value=date.today()
     )
 
-# Display progress tracking
-st.markdown(f"### Progress Tracking for {selected_well}")
-progress_data = st.session_state['data'][selected_well]
-completed_processes = sum(1 for date in progress_data.values() if date)
-total_processes = len(processes)
-progress_percentage = completed_processes / total_processes
+# Columns for visualization
+col1, col2, col3 = st.columns(3)
 
-st.progress(progress_percentage)
+# Column 1: Well being updated
+col1.header(f"Well: {selected_well}")
+for process, process_date in st.session_state['data'][selected_well].items():
+    col1.write(f"{process}: {process_date}")
 
-# KPI Comparison
-st.markdown("### KPI Comparison")
-# Placeholder for future KPI tracking logic
-st.write("KPI tracking will be implemented here.")
+# Column 2: KPI Visualization and Comparison
+col2.header("KPI Visualization and Comparison")
+# Placeholder for future visualization logic
+col2.write("Visualization to be added.")
+
+# Column 3: Gaps, Lagging, and Leading
+col3.header("Gaps, Lagging, and Leading")
+# Placeholder for gap analysis logic
+col3.write("Gap analysis to be added.")
