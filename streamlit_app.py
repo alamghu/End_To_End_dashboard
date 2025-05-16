@@ -60,7 +60,7 @@ st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 st.sidebar.markdown("**Rig Release Date**")
 rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
 with rig_release_col1:
-    st.write("")
+    st.write("Date")
 with rig_release_col2:
     rig_release_date = st.date_input(
         "Rig Release",
@@ -147,7 +147,8 @@ for well, well_data in st.session_state['data'].items():
     if rig_release_start and on_stream_end:
         total_days = max((on_stream_end - rig_release_start).days, 1)
         progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
-        progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
+        if process != 'Rig Release':
+                progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
 
 progress_df = pd.DataFrame(progress_data)
 
