@@ -7,7 +7,7 @@ import streamlit as st
 st.title('End To End Dashboard')
 ####################
 # Side Bar Title
-st.sidebar.title('Input')
+st.sidebar.title('Input Activity Date')
 # Taking Inputs from user by number inputs
 Proppant_Specific_Gravity = st.sidebar.number_input("Proppant Specific Gravity (SG)", min_value = 1.0, max_value = 4.65, value =3.5)
 lbs_of_Proppant_in_Tubular = st.sidebar.number_input("lbs of Proppant in Tubular (lbs)", min_value = 1, max_value = 500000, value =50000)
