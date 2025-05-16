@@ -74,7 +74,7 @@ for process in processes:
     st.session_state['data'][selected_well][process]['end'] = end_date
 
 # Columns for visualization
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
 # Column 1: Well being updated
 col1.header(f"Well: {selected_well}")
