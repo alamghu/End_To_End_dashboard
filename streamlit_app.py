@@ -40,8 +40,11 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 for process in processes:
-    start_date = st.sidebar.date_input(f"Start - {process}", value=date.today())
-    end_date = st.sidebar.date_input(f"End - {process}", value=date.today())
+    col_start, col_end = st.sidebar.columns(2)
+    with col_start:
+        start_date = st.date_input(f"Start - {process}", value=date.today())
+    with col_end:
+        end_date = st.date_input(f"End - {process}", value=date.today())
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
 
