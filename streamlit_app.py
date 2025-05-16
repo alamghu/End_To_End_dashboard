@@ -16,7 +16,7 @@ alt.themes.enable("dark")
 wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
-processes = [
+processes = ["Rig Release",
     "WLCTF_ UWO ➜ GGO",
     "Standalone Activity",
     "On Plot Hookup",
@@ -31,6 +31,7 @@ processes = [
 ]
 ####################################################################
 
+
 # Data storage
 if 'data' not in st.session_state:
     st.session_state['data'] = {well: {process: {'start': None, 'end': None} for process in processes} for well in wells}
@@ -41,20 +42,33 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 
-# Rig Release
-st.sidebar.markdown("**Rig Release**")
+# Rig Release as a single input
+st.sidebar.markdown("**Rig Release Date**")
 rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 2])
 with rig_release_col1:
-    st.write("")
+    st.write("Date")
 with rig_release_col2:
     rig_release_date = st.date_input(
-        "Rig Release",
+        "Rig Release Date",
         value=st.session_state['data'][selected_well]['Rig Release']['start'],
         label_visibility="collapsed"
     )
 
 st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
+
+# Rig Release Input - Side-by-Side Layout
+st.sidebar.markdown("**Rig Release Date**")
+rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
+with rig_release_col1:
+    st.write("Date")
+with rig_release_col2:
+    rig_release_date = st.date_input(
+        "Rig Release",
+        value=st.session_state['data'][selected_well]['Rig Release']['start'],
+        label_visibility="collapsed"
+    )
+st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 
 # Ensure that when a new well is selected, date inputs are cleared
 for process in processes:
@@ -228,3 +242,4 @@ for process, dates in st.session_state['data'][selected_well].items():
             col3.write(f"Error: {process} end date is before start date")
     elif not start_date or not end_date:
         col3.write(f"{process}: Dates not fully entered")
+
