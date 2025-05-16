@@ -30,9 +30,9 @@ conn.commit()
 
 # Define user roles
 USERS = {
-    "user1": "entry",
-    "user2": "entry",
-    "user3": "entry",
+    "Ghusun64275": "entry",
+    "Maha64275": "entry",
+    "Ali64275": "entry",
     "viewer1": "view",
     "viewer2": "view",
     "viewer3": "view"
