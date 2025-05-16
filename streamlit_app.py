@@ -138,23 +138,14 @@ for well, well_data in st.session_state['data'].items():
         total_days = max((on_stream_end - rig_release_start).days, 1)
         completion_days = total_days - 120
         progress_percentage = (total_days / 120) * 100
-        progress_color = "green" if total_days <= 120 else "red"
+        progress_color = "#32CD32" if total_days <= 120 else "#FF6347"
         progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage, "Color": progress_color})
-
-    # Gap Analysis for selected well
-    if well == selected_well:
-        for process, dates in well_data.items():
-            start_date = dates['start']
-            end_date = dates['end']
-            if start_date and end_date and end_date < start_date:
-                gap_messages.append(f"Error: {process} end date is before start date")
-            elif not start_date or not end_date:
-                gap_messages.append(f"{process}: Dates not fully entered")
 
 # Display Progress Overview
 progress_df = pd.DataFrame(progress_data)
 
 if not progress_df.empty:
+    col3.write("Progress Overview")
     col3.dataframe(
         progress_df,
         use_container_width=True,
@@ -163,15 +154,9 @@ if not progress_df.empty:
                 min_value=0,
                 max_value=progress_df['Progress'].max(),
                 format="{:.1f}%",
-                label="Completion",
-                color=("#FF6347" if progress_df['Total Days'].max() > 120 else "#32CD32")
+                label="Completion"
             )
         }
     )
 else:
     col3.write("No data available for progress tracking.")
-
-# Display Gap Analysis
-col3.header("Gaps, Lagging, and Leading")
-for msg in gap_messages:
-    col3.write(msg)
