@@ -41,33 +41,20 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 
-# Rig Release as a single input
-st.sidebar.markdown("**Rig Release Date**")
+# Rig Release
+st.sidebar.markdown("**Rig Release**")
 rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 2])
 with rig_release_col1:
-    st.write("Date")
-with rig_release_col2:
-    rig_release_date = st.date_input(
-        "Rig Release Date",
-        value=st.session_state['data'][selected_well]['Rig Release']['start'],
-        label_visibility="collapsed"
-    )
-
-st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
-st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
-
-# Rig Release Input - Side-by-Side Layout
-st.sidebar.markdown("**Rig Release Date**")
-rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
-with rig_release_col1:
-    st.write("Date")
+    st.write("")
 with rig_release_col2:
     rig_release_date = st.date_input(
         "Rig Release",
         value=st.session_state['data'][selected_well]['Rig Release']['start'],
         label_visibility="collapsed"
     )
+
 st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
+st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 
 # Ensure that when a new well is selected, date inputs are cleared
 for process in processes:
