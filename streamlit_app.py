@@ -13,16 +13,6 @@ st.set_page_config(
 alt.themes.enable("dark")
 
 
-
-# Define well names
-
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import date
-
-st.set_page_config(layout="wide")
-
 # Define well names
 wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
 
