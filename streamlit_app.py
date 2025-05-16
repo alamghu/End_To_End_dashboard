@@ -136,7 +136,7 @@ for well, well_data in st.session_state['data'].items():
     on_stream_end = well_data['On stream']['end']
     if rig_release_start and on_stream_end:
         total_days = max((on_stream_end - rig_release_start).days, 1)
-        completion_days = total_days - 120
+        completion_days = 120 - total_days
         progress_percentage = min((total_days / 120) * 100, 100)
         progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage})
 
