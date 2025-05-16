@@ -12,9 +12,6 @@ st.set_page_config(
 
 alt.themes.enable("dark")
 
-# Define well names
-wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
-
 # Define process stages
 processes = [
     "Handover WLCTF from UWO to GGO",
@@ -40,11 +37,14 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 for process in processes:
+    st.sidebar.markdown(f"**{process}**")
     col_start, col_end = st.sidebar.columns(2)
     with col_start:
-        start_date = st.date_input(f"Start - {process}", value=date.today())
+        start_date = st.date_input(f"Start - {process}", value=date.today(), label_visibility="collapsed")
+        st.write("Start")
     with col_end:
-        end_date = st.date_input(f"End - {process}", value=date.today())
+        end_date = st.date_input(f"End - {process}", value=date.today(), label_visibility="collapsed")
+        st.write("End")
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
 
