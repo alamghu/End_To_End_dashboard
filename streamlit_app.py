@@ -43,17 +43,17 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 
 # Rig Release as a single input
+# Rig Release as a single input - Side-by-Side Layout
 st.sidebar.markdown("**Rig Release Date**")
-rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 2])
+rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
 with rig_release_col1:
     st.write("Date")
 with rig_release_col2:
     rig_release_date = st.date_input(
-        "Rig Release Date",
+        "Rig Release",
         value=st.session_state['data'][selected_well]['Rig Release']['start'],
         label_visibility="collapsed"
     )
-
 st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 
@@ -71,7 +71,7 @@ with rig_release_col2:
 st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_date
 
 # Ensure that when a new well is selected, date inputs are cleared
-for process in processes:
+for process in [p for p in processes if p != 'Rig Release']:
     if st.session_state['data'][selected_well][process]['start'] is None:
         start_date = None
     else:
@@ -108,6 +108,8 @@ col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 # Column 1: Well being updated
 col1.header(f"Well: {selected_well}")
 for process, dates in st.session_state['data'][selected_well].items():
+    if process == 'Rig Release':
+        continue
     start_date = dates['start']
     end_date = dates['end']
     if start_date and end_date:
@@ -127,7 +129,8 @@ for well, well_data in st.session_state['data'].items():
         end_date = dates['end']
         if start_date and end_date:
             duration = max((end_date - start_date).days, 1)
-            chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
+            if process != 'Rig Release':
+                chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
 
 # Create DataFrame for visualization
 chart_df = pd.DataFrame(chart_data)
