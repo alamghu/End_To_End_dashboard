@@ -42,7 +42,6 @@ selected_well = st.sidebar.selectbox("Select a Well", wells)
 
 st.sidebar.markdown(f"### Enter Dates for {selected_well}")
 
-# Rig Release as a single input
 # Rig Release as a single input - Side-by-Side Layout
 st.sidebar.markdown("**Rig Release Date**")
 rig_release_col1, rig_release_col2 = st.sidebar.columns([1, 3])
@@ -58,18 +57,10 @@ st.session_state['data'][selected_well]['Rig Release']['start'] = rig_release_da
 st.session_state['data'][selected_well]['Rig Release']['end'] = rig_release_date
 
 
-
 # Ensure that when a new well is selected, date inputs are cleared
 for process in [p for p in processes if p != 'Rig Release']:
-    if st.session_state['data'][selected_well][process]['start'] is None:
-        start_date = None
-    else:
-        start_date = st.session_state['data'][selected_well][process]['start']
-
-    if st.session_state['data'][selected_well][process]['end'] is None:
-        end_date = None
-    else:
-        end_date = st.session_state['data'][selected_well][process]['end']
+    start_date = st.session_state['data'][selected_well][process]['start']
+    end_date = st.session_state['data'][selected_well][process]['end']
 
     st.sidebar.markdown(f"**{process}**")
     col_start, col_end = st.sidebar.columns(2)
@@ -88,8 +79,12 @@ for process in [p for p in processes if p != 'Rig Release']:
             label_visibility="collapsed"
         )
 
+    # Validation
+    if start_date and end_date and start_date > end_date:
+        st.sidebar.error(f"Error: Start date must be before End date for {process}")
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
+
 
 # Columns for visualization
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
@@ -107,6 +102,7 @@ for process, dates in st.session_state['data'][selected_well].items():
     else:
         col1.write(f"{process}: Incomplete")
 
+
 # Column 2: KPI Visualization and Comparison
 col2.header("KPI Visualization and Comparison")
 
@@ -121,7 +117,6 @@ for well, well_data in st.session_state['data'].items():
             if process != 'Rig Release':
                 chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
 
-# Create DataFrame for visualization
 chart_df = pd.DataFrame(chart_data)
 
 if not chart_df.empty:
@@ -130,19 +125,31 @@ if not chart_df.empty:
 else:
     col2.write("Enter dates to generate the comparison chart.")
 
-# Column 3: Progress Overview
-col3.header("Progress Overview")
 
+# Column 3: Progress Overview and Gaps
+col3.header("Progress Overview")
 progress_data = []
+gap_messages = []
+
 for well, well_data in st.session_state['data'].items():
     rig_release_start = well_data['Rig Release']['start']
     on_stream_end = well_data['On stream']['end']
     if rig_release_start and on_stream_end:
         total_days = max((on_stream_end - rig_release_start).days + 1, 1) if well != wells[0] else 1
-        progress_percentage = min((total_days / 120) * 100, 100)  # Cap at 100%
+        progress_percentage = min((total_days / 120) * 100, 100)
         progress_data.append({"Well": well, "Total Days": total_days, "Progress": progress_percentage})
 
-# Create DataFrame for progress tracking
+    # Gap Analysis for selected well
+    if well == selected_well:
+        for process, dates in well_data.items():
+            start_date = dates['start']
+            end_date = dates['end']
+            if start_date and end_date and end_date < start_date:
+                gap_messages.append(f"Error: {process} end date is before start date")
+            elif not start_date or not end_date:
+                gap_messages.append(f"{process}: Dates not fully entered")
+
+# Display Progress Overview
 progress_df = pd.DataFrame(progress_data)
 
 if not progress_df.empty:
@@ -160,15 +167,8 @@ if not progress_df.empty:
     )
 else:
     col3.write("No data available for progress tracking.")
-col3.header("Gaps, Lagging, and Leading")
 
-# Gap Analysis
-for process, dates in st.session_state['data'][selected_well].items():
-    start_date = dates['start']
-    end_date = dates['end']
-    if start_date and end_date:
-        if end_date < start_date:
-    col3.write(f"Error: End date for {process} cannot be before start date")
-            col3.write(f"Error: {process} end date is before start date")
-    elif not start_date or not end_date:
-        col3.write(f"{process}: Dates not fully entered")
+# Display Gap Analysis
+col3.header("Gaps, Lagging, and Leading")
+for msg in gap_messages:
+    col3.write(msg)
