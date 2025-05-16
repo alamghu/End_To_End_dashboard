@@ -13,6 +13,7 @@ st.set_page_config(
 alt.themes.enable("dark")
 
 
+
 # Define well names
 wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
 
@@ -48,16 +49,14 @@ for process in processes:
         start_date = st.date_input(
             f"Start - {process}",
             value=None,
-            label_visibility="collapsed",
-            placeholder="Add a date"
+            label_visibility="collapsed"
         )
     with col_end:
         st.write("End")
         end_date = st.date_input(
             f"End - {process}",
             value=None,
-            label_visibility="collapsed",
-            placeholder="Add a date"
+            label_visibility="collapsed"
         )
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
