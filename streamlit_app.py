@@ -127,10 +127,10 @@ else:
 
 
 # Column 3: Progress Overview and Gaps
-col3.header("Progress Overview")
+col3.header("Progress Overview & Gaps Analysis")
 progress_data = []
-gap_messages = []
 
+gap_analysis = []
 for well, well_data in st.session_state['data'].items():
     rig_release_start = well_data['Rig Release']['start']
     on_stream_end = well_data['On stream']['end']
@@ -138,14 +138,21 @@ for well, well_data in st.session_state['data'].items():
         total_days = max((on_stream_end - rig_release_start).days, 1)
         completion_days = total_days - 120
         progress_percentage = (total_days / 120) * 100
-        progress_color = "#32CD32" if total_days <= 120 else "#FF6347"
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage, "Color": progress_color})
+
+        # Determine progress color
+        color = "#32CD32" if total_days <= 120 else "#FF6347"
+        progress_data.append({"Well": well, "Total Days": total_days, "Completion Days": completion_days, "Progress": progress_percentage})
+
+        # Gap Analysis
+        if completion_days > 0:
+            gap_analysis.append(f"{well}: Over target by {completion_days} days")
+        elif completion_days < 0:
+            gap_analysis.append(f"{well}: Under target by {abs(completion_days)} days")
 
 # Display Progress Overview
 progress_df = pd.DataFrame(progress_data)
 
 if not progress_df.empty:
-    col3.write("Progress Overview")
     col3.dataframe(
         progress_df,
         use_container_width=True,
@@ -160,3 +167,9 @@ if not progress_df.empty:
     )
 else:
     col3.write("No data available for progress tracking.")
+
+# Display Gap Analysis
+if gap_analysis:
+    col3.write("### Gap Analysis")
+    for gap in gap_analysis:
+        col3.write(gap)
