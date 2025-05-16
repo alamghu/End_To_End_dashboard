@@ -12,6 +12,7 @@ st.set_page_config(
 
 alt.themes.enable("dark")
 
+
 # Define well names
 wells = ["Well Alpha", "Well Bravo", "Well Charlie", "Well Delta", "Well Echo", "Well Foxtrot", "Well Golf", "Well Hotel", "Well India", "Well Juliet"]
 
@@ -43,11 +44,21 @@ for process in processes:
     st.sidebar.markdown(f"**{process}**")
     col_start, col_end = st.sidebar.columns(2)
     with col_start:
-        start_date = st.date_input(f"Start - {process}", value=date.today(), label_visibility="collapsed")
         st.write("Start")
+        start_date = st.date_input(
+            f"Start - {process}",
+            value=None,
+            label_visibility="collapsed",
+            placeholder="Add a date"
+        )
     with col_end:
-        end_date = st.date_input(f"End - {process}", value=date.today(), label_visibility="collapsed")
         st.write("End")
+        end_date = st.date_input(
+            f"End - {process}",
+            value=None,
+            label_visibility="collapsed",
+            placeholder="Add a date"
+        )
     st.session_state['data'][selected_well][process]['start'] = start_date
     st.session_state['data'][selected_well][process]['end'] = end_date
 
@@ -60,7 +71,7 @@ for process, dates in st.session_state['data'][selected_well].items():
     start_date = dates['start']
     end_date = dates['end']
     if start_date and end_date:
-        duration = (end_date - start_date).days
+        duration = max((end_date - start_date).days, 1)
         col1.write(f"{process}: {duration} days")
     else:
         col1.write(f"{process}: Incomplete")
@@ -75,7 +86,7 @@ for well, well_data in st.session_state['data'].items():
         start_date = dates['start']
         end_date = dates['end']
         if start_date and end_date:
-            duration = (end_date - start_date).days
+            duration = max((end_date - start_date).days, 1)
             chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
 
 # Create DataFrame for visualization
@@ -99,4 +110,3 @@ for process, dates in st.session_state['data'][selected_well].items():
             col3.write(f"Error: {process} end date is before start date")
     elif not start_date or not end_date:
         col3.write(f"{process}: Dates not fully entered")
-
