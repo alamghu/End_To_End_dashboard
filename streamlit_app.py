@@ -176,7 +176,7 @@ for well in wells:
     if on_stream and on_stream[0]:
         progress_day_data.append({'Well': well, 'Completion Progress Days': "HU Completed, On Stream"})
     elif rig_release and rig_release[0]:
-        days = max(120 - (date.today() - pd.to_datetime(rig_release[0]).date()).days, 0)
+        days = (120 - (date.today() - pd.to_datetime(rig_release[0]).date()).days, 0)
         progress_day_data.append({'Well': well, 'Completion Progress Days': days})
     else:
         progress_day_data.append({'Well': well, 'Completion Progress Days': "No Rig Release"})
