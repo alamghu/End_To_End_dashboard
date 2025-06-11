@@ -1,4 +1,3 @@
-##
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -99,7 +98,7 @@ if role == "entry":
 
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
-        col_start, col_end = st.sidebar.columns(2)
+        col_start, col_end, col_del = st.sidebar.columns([2, 2, 1])
         key_start = f"start_{process}"
         key_end = f"end_{process}"
 
@@ -110,6 +109,15 @@ if role == "entry":
         with col_end:
             default_end = st.session_state.get(key_end)
             end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
+
+        with col_del:
+            if st.button("🗑️", key=f"del_{process}"):
+                if st.sidebar.checkbox(f"Confirm delete {process}?", key=f"confirm_{process}"):
+                    c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                    conn.commit()
+                    st.session_state[key_start] = None
+                    st.session_state[key_end] = None
+                    st.rerun()
 
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
@@ -237,4 +245,3 @@ if not progress_df.empty:
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
     col3.write(gap)
-
