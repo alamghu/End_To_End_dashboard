@@ -1,6 +1,3 @@
-Certainly! Here is your full code with **minimal changes** that fix the deletion confirmation logic and prevent the Streamlit session state error. The 🗑️ delete buttons now work correctly with a confirmation prompt before deletion.
-
-```python
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -215,3 +212,37 @@ chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
     col2.plotly_chart(fig)
+
+progress_day_df = pd.DataFrame(progress_day_data)
+col2.dataframe(progress_day_df.style.applymap(
+    lambda x: 'background-color: lightgreen' if x == "HU Completed, On Stream" else ('background-color: lightcoral' if isinstance(x, int) and x < 20 else ''),
+    subset=["Completion Progress Days"]
+))
+
+# Column 3: Gaps, Lagging, Leading
+col3.header("Gaps and Progress")
+today = date.today()
+
+gap_data = []
+for well in wells:
+    c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
+    rig = c.fetchone()
+    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, "On stream"))
+    ons = c.fetchone()
+
+    if ons and ons[0]:
+        gap_data.append({"Well": well, "Status": "On Stream"})
+    elif rig and rig[0]:
+        days_passed = (today - pd.to_datetime(rig[0]).date()).days
+        if days_passed > 120:
+            status = "Lagging"
+        else:
+            status = "On Schedule"
+        gap_data.append({"Well": well, "Status": status})
+    else:
+        gap_data.append({"Well": well, "Status": "No Rig Release"})
+
+gap_df = pd.DataFrame(gap_data)
+col3.dataframe(gap_df)
+
+conn.close()
