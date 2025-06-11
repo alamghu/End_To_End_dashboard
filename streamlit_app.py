@@ -1,4 +1,4 @@
-# Full updated Streamlit app 11/06/2025 @ 8am
+# Updated Streamlit app 11/06/2025 @ 8am
 
 import streamlit as st
 import pandas as pd
