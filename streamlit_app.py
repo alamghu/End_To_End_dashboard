@@ -1,4 +1,3 @@
-##
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -118,6 +117,29 @@ if role == "entry":
                       (selected_well, process, start_date.isoformat(), end_date.isoformat()))
             conn.commit()
 
+        # --- DELETE BUTTON & CONFIRMATION ---
+        del_key = f"del_{process}"
+        if st.sidebar.button("🗑️", key=del_key):
+            st.session_state["to_delete"] = process
+            st.experimental_rerun()
+
+        if st.session_state.get("to_delete") == process:
+            st.sidebar.warning(f"Are you sure you want to delete dates for **{process}**?")
+            yes = st.sidebar.button("✅ Yes", key=f"yes_{process}")
+            no = st.sidebar.button("❌ No", key=f"no_{process}")
+
+            if yes:
+                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                conn.commit()
+                st.session_state.pop(f"start_{process}", None)
+                st.session_state.pop(f"end_{process}", None)
+                st.session_state.pop("to_delete", None)
+                st.experimental_rerun()
+
+            if no:
+                st.session_state.pop("to_delete", None)
+                st.experimental_rerun()
+
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
 # Column 1: Well being updated
@@ -217,24 +239,11 @@ for well in wells:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
         progress = round((total_days / 120) * 100, 1)
         color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
-        gap = total_days - 120
-        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
+        progress_data.append({'Well': well, 'Completion Percentage': f"{progress}%"})
     else:
-        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
-        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
+        progress_data.append({'Well': well, 'Completion Percentage': 'N/A'})
 
 progress_df = pd.DataFrame(progress_data)
+col3.dataframe(progress_df, use_container_width=True)
 
-if not progress_df.empty:
-    def color_cells(val, color):
-        return f'background-color: {color}' if color else ''
-
-    styled_df = progress_df.drop(columns=["Color"]).style.apply(
-        lambda x: [color_cells(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
-    col3.dataframe(styled_df, use_container_width=True)
-
-col3.write("### Gap Analysis")
-for gap in gap_analysis:
-    col3.write(gap)
-
+conn.close()
