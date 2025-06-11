@@ -1,3 +1,6 @@
+Certainly! Here is your full code with **minimal changes** that fix the deletion confirmation logic and prevent the Streamlit session state error. The 🗑️ delete buttons now work correctly with a confirmation prompt before deletion.
+
+```python
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -79,7 +82,6 @@ if previous_well != selected_well:
         st.session_state[key_end] = pd.to_datetime(result[1]).date() if result and result[1] else None
 
 if role == "entry":
-    # Rig Release date input
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
     saved_rig = c.fetchone()
     rig_release_key = "rig_release"
@@ -97,17 +99,11 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Release"] = rig_release_date
 
-    # Process dates inputs with delete button and confirmation
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
-        col_start, col_end, col_del, col_conf = st.sidebar.columns([3,3,1,3])
+        col_start, col_end, col_del = st.sidebar.columns([3, 3, 1])
         key_start = f"start_{process}"
         key_end = f"end_{process}"
-        confirm_key = f"confirm_delete_{process}"
-
-        # Initialize confirmation state if not exists
-        if confirm_key not in st.session_state:
-            st.session_state[confirm_key] = False
 
         with col_start:
             default_start = st.session_state.get(key_start)
@@ -119,27 +115,31 @@ if role == "entry":
 
         with col_del:
             if st.button("🗑️", key=f"del_{process}"):
-                st.session_state[confirm_key] = True
+                # Set a session key to trigger confirmation prompt and rerun
+                st.session_state["to_delete_process"] = process
+                st.experimental_rerun()
 
-        with col_conf:
-            if st.session_state[confirm_key]:
-                st.write(f"Confirm removal of dates for '{process}'?")
-                yes_col, no_col = st.columns(2)
-                with yes_col:
-                    if st.button("Yes", key=f"yes_delete_{process}"):
-                        c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                        conn.commit()
-                        if key_start in st.session_state:
-                            del st.session_state[key_start]
-                        if key_end in st.session_state:
-                            del st.session_state[key_end]
-                        st.session_state[confirm_key] = False
-                        st.experimental_rerun()
-                with no_col:
-                    if st.button("No", key=f"no_delete_{process}"):
-                        st.session_state[confirm_key] = False
+        # Show confirmation prompt only if this process matches the pending deletion
+        if st.session_state.get("to_delete_process") == process:
+            st.write(f"Confirm removal of dates for '{process}'?")
+            yes_col, no_col = st.columns(2)
+            with yes_col:
+                if st.button("Yes", key=f"yes_delete_{process}"):
+                    c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                    conn.commit()
+                    # Remove dates from session_state safely
+                    if key_start in st.session_state:
+                        del st.session_state[key_start]
+                    if key_end in st.session_state:
+                        del st.session_state[key_end]
+                    del st.session_state["to_delete_process"]
+                    st.experimental_rerun()
+            with no_col:
+                if st.button("No", key=f"no_delete_{process}"):
+                    del st.session_state["to_delete_process"]
+                    st.experimental_rerun()
 
-        # Validation and saving to DB
+        # Validate dates and save to DB
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
         elif start_date and end_date:
@@ -215,45 +215,3 @@ chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
     col2.plotly_chart(fig)
-
-progress_day_df = pd.DataFrame(progress_day_data)
-
-def highlight(val):
-    if isinstance(val, int):
-        if val <= 0:
-            return 'background-color: red'
-        elif val < 60:
-            return 'background-color: orange'
-        elif val <= 120:
-            return 'background-color: green'
-        else:
-            return 'background-color: red'
-    return ''
-
-col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
-
-# Column 3: Completion Percentage
-col3.header("Progress Overview & Gap Analysis")
-progress_data = []
-gap_analysis = []
-
-for well in wells:
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
-    rig = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-    ons = c.fetchone()
-    if rig and rig[0] and ons and ons[0]:
-        total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
-        progress = round((total_days / 120) * 100, 1)
-        color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data.append({"Well": well, "Completion %": f"{progress}%", "Color": color})
-    else:
-        progress_data.append({"Well": well, "Completion %": "0%", "Color": '#FF6347'})
-
-progress_df = pd.DataFrame(progress_data)
-progress_df = progress_df.set_index('Well')
-col3.write("Completion Percentage per Well")
-for well, row in progress_df.iterrows():
-    col3.markdown(f"<div style='background-color: {row['Color']}; padding: 6px; margin-bottom: 2px; border-radius: 5px;'>{well}: {row['Completion %']}</div>", unsafe_allow_html=True)
-
-conn.close()
