@@ -1,3 +1,4 @@
+##
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -98,7 +99,7 @@ if role == "entry":
 
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
-        col_start, col_end, col_del = st.sidebar.columns([3, 3, 1])
+        col_start, col_end = st.sidebar.columns(2)
         key_start = f"start_{process}"
         key_end = f"end_{process}"
 
@@ -110,33 +111,6 @@ if role == "entry":
             default_end = st.session_state.get(key_end)
             end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
 
-        with col_del:
-            if st.button("🗑️", key=f"del_{process}"):
-                # Set a session key to trigger confirmation prompt and rerun
-                st.session_state["to_delete_process"] = process
-                st.experimental_rerun()
-
-        # Show confirmation prompt only if this process matches the pending deletion
-        if st.session_state.get("to_delete_process") == process:
-            st.write(f"Confirm removal of dates for '{process}'?")
-            yes_col, no_col = st.columns(2)
-            with yes_col:
-                if st.button("Yes", key=f"yes_delete_{process}"):
-                    c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                    conn.commit()
-                    # Remove dates from session_state safely
-                    if key_start in st.session_state:
-                        del st.session_state[key_start]
-                    if key_end in st.session_state:
-                        del st.session_state[key_end]
-                    del st.session_state["to_delete_process"]
-                    st.experimental_rerun()
-            with no_col:
-                if st.button("No", key=f"no_delete_{process}"):
-                    del st.session_state["to_delete_process"]
-                    st.experimental_rerun()
-
-        # Validate dates and save to DB
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
         elif start_date and end_date:
@@ -214,35 +188,53 @@ if not chart_df.empty:
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
-col2.dataframe(progress_day_df.style.applymap(
-    lambda x: 'background-color: lightgreen' if x == "HU Completed, On Stream" else ('background-color: lightcoral' if isinstance(x, int) and x < 20 else ''),
-    subset=["Completion Progress Days"]
-))
 
-# Column 3: Gaps, Lagging, Leading
-col3.header("Gaps and Progress")
-today = date.today()
-
-gap_data = []
-for well in wells:
-    c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
-    rig = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, "On stream"))
-    ons = c.fetchone()
-
-    if ons and ons[0]:
-        gap_data.append({"Well": well, "Status": "On Stream"})
-    elif rig and rig[0]:
-        days_passed = (today - pd.to_datetime(rig[0]).date()).days
-        if days_passed > 120:
-            status = "Lagging"
+def highlight(val):
+    if isinstance(val, int):
+        if val <= 0:
+            return 'background-color: red'
+        elif val < 60:
+            return 'background-color: orange'
+        elif val <= 120:
+            return 'background-color: green'
         else:
-            status = "On Schedule"
-        gap_data.append({"Well": well, "Status": status})
+            return 'background-color: red'
+    return ''
+
+col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
+
+# Column 3: Completion Percentage
+col3.header("Progress Overview & Gap Analysis")
+progress_data = []
+gap_analysis = []
+
+for well in wells:
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    rig = c.fetchone()
+    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+    ons = c.fetchone()
+    if rig and rig[0] and ons and ons[0]:
+        total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
+        progress = round((total_days / 120) * 100, 1)
+        color = '#32CD32' if total_days <= 120 else '#FF6347'
+        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
+        gap = total_days - 120
+        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
     else:
-        gap_data.append({"Well": well, "Status": "No Rig Release"})
+        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
+        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-gap_df = pd.DataFrame(gap_data)
-col3.dataframe(gap_df)
+progress_df = pd.DataFrame(progress_data)
 
-conn.close()
+if not progress_df.empty:
+    def color_cells(val, color):
+        return f'background-color: {color}' if color else ''
+
+    styled_df = progress_df.drop(columns=["Color"]).style.apply(
+        lambda x: [color_cells(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
+    col3.dataframe(styled_df, use_container_width=True)
+
+col3.write("### Gap Analysis")
+for gap in gap_analysis:
+    col3.write(gap)
+
