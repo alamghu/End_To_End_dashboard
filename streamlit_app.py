@@ -111,13 +111,24 @@ if role == "entry":
             end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
 
         with col_del:
-            if st.button("🗑️", key=f"del_{process}"):
-                if st.sidebar.checkbox(f"Confirm delete {process}?", key=f"confirm_{process}"):
-                    c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                    conn.commit()
-                    st.session_state[key_start] = None
-                    st.session_state[key_end] = None
-                    st.rerun()
+            if st.button("🗑️", key=f"delete_{process}", help=f"Delete dates for {process}"):
+                if st.session_state.get(f"confirm_delete_{process}") is None:
+                    st.session_state[f"confirm_delete_{process}"] = True
+                else:
+                    st.session_state[f"confirm_delete_{process}"] = not st.session_state[f"confirm_delete_{process}"]
+
+        if st.session_state.get(f"confirm_delete_{process}"):
+            st.sidebar.warning(f"Confirm delete for **{process}**?")
+            confirm_col1, confirm_col2 = st.sidebar.columns(2)
+            if confirm_col1.button("Yes", key=f"yes_delete_{process}"):
+                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                conn.commit()
+                st.session_state[key_start] = None
+                st.session_state[key_end] = None
+                st.session_state[f"confirm_delete_{process}"] = False
+                st.experimental_rerun()
+            if confirm_col2.button("No", key=f"no_delete_{process}"):
+                st.session_state[f"confirm_delete_{process}"] = False
 
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
