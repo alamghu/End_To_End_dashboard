@@ -1,140 +1,112 @@
-##
 import streamlit as st
-import pandas as pd
 import sqlite3
-from datetime import date, datetime
-import altair as alt
-import plotly.express as px
+import pandas as pd
+from datetime import datetime
 
-st.set_page_config(
-    page_title="End To End Tracking Dashboard",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded")
-
-alt.themes.enable("dark")
-
-DB_PATH = 'tracking_data.db'
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+# Database setup
+conn = sqlite3.connect('well_processes.db', check_same_thread=False)
 c = conn.cursor()
-
-c.execute('''CREATE TABLE IF NOT EXISTS process_data (
+c.execute('''
+CREATE TABLE IF NOT EXISTS process_data (
     well TEXT,
     process TEXT,
     start_date TEXT,
     end_date TEXT,
     PRIMARY KEY (well, process)
-)''')
+)
+''')
 conn.commit()
 
-USERS = {
-    "user1": "entry",
-    "user2": "entry",
-    "user3": "entry",
-    "viewer1": "view",
-    "viewer2": "view",
-    "viewer3": "view"
-}
-
-username = st.sidebar.text_input("Username")
-if username not in USERS:
-    st.sidebar.error("User not recognized")
-    st.stop()
-
-role = USERS[username]
-
-wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
-
-processes = ["Rig Release",
-    "WLCTF_ UWO ➜ GGO",
-    "Standalone Activity",
-    "On Plot Hookup",
-    "Pre-commissioning",
+# Define wells and processes
+wells = [f"Well {i+1}" for i in range(10)]
+processes = [
+    "Handover WLCTF from UWO to GGO",
+    "Standalone Activity (SCMT Execution)",
+    "On Plot Mechanical Completion",
+    "Pre-commissioning (up to SOF)",
     "Unhook",
-    "WLCTF_GGO ➜ UWIF",
-    "Waiting IFS Resources",
+    "Handover WLCTF from GGO to UWI",
+    "Waiting on shared IFS resources",
     "Frac Execution",
-    "Re-Hook & commissioning",
+    "Re-Hook and commissioning (eSOF)",
     "Plug Removal",
-    "On stream"]
+    "On stream"
+]
 
-st.sidebar.header("Well Selection and Data Entry")
-previous_well = st.session_state.get('selected_well', None)
-selected_well = st.sidebar.selectbox("Select a Well", wells)
-st.session_state['selected_well'] = selected_well
+# Configure layout
+st.set_page_config(layout="wide")
+st.title("Well Process Tracking Dashboard")
 
-if previous_well != selected_well:
+# Sidebar
+selected_well = st.sidebar.selectbox("Select a well", wells)
+
+# Load current data for selected well
+c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ?', (selected_well,))
+data_dict = {row[0]: (row[1], row[2]) for row in c.fetchall()}
+
+# Layout setup
+col1, col2, col3 = st.columns([1.5, 2, 1.5])
+
+with col1:
+    st.subheader(f"Process Dates for {selected_well}")
     for process in processes:
-        key_start = f"start_{process}"
-        key_end = f"end_{process}"
-        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-        result = c.fetchone()
-        if result:
-            start_val = pd.to_datetime(result[0]).date() if result[0] else None
-            end_val = pd.to_datetime(result[1]).date() if result[1] else None
-        else:
-            start_val = None
-            end_val = None
-        st.session_state[key_start] = start_val
-        st.session_state[key_end] = end_val
+        clean_key = process.replace(" ", "_").replace("(", "").replace(")", "")
+        key_start = f"{selected_well}_{clean_key}_start"
+        key_end = f"{selected_well}_{clean_key}_end"
 
-if role == "entry":
-    rig_release_key = "rig_release"
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
-    result = c.fetchone()
-    existing_rig_release = pd.to_datetime(result[0]).date() if result and result[0] else None
+        # Load defaults from DB or session state
+        start_val_str, end_val_str = data_dict.get(process, (None, None))
+        start_val = pd.to_datetime(start_val_str).date() if start_val_str else None
+        end_val = pd.to_datetime(end_val_str).date() if end_val_str else None
 
-    rig_release_date = st.sidebar.date_input(
-        "Rig Release",
-        value=existing_rig_release if existing_rig_release else None,
-        key=rig_release_key,
-        help="Enter Rig Release Date"
-    )
-
-    if rig_release_date:
-        c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
-                  (selected_well, "Rig Release", rig_release_date.isoformat(), rig_release_date.isoformat()))
-        conn.commit()
-        st.session_state[f"end_Rig Release"] = rig_release_date
-
-    for process in processes[1:]:
-        key_start = f"start_{process}"
-        key_end = f"end_{process}"
-        st.sidebar.markdown(f"**{process}**")
-        col_start, col_end, col_clear = st.sidebar.columns([4, 4, 1])
+        col_process, col_start, col_end, col_clear = st.columns([2, 2, 2, 1])
+        col_process.markdown(f"**{process}**")
 
         with col_start:
-            default_start = st.session_state.get(key_start, None)
-            start_date = st.date_input(f"Start - {process}", value=default_start, key=key_start)
+            st.session_state[key_start] = st.date_input(
+                label="Start",
+                value=start_val if start_val else datetime.today().date(),
+                key=f"{key_start}_input"
+            )
 
         with col_end:
-            default_end = st.session_state.get(key_end, None)
-            end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
+            st.session_state[key_end] = st.date_input(
+                label="End",
+                value=end_val if end_val else datetime.today().date(),
+                key=f"{key_end}_input"
+            )
 
         with col_clear:
-            confirm_key = f"confirm_clear_{process}"
-            if st.button("🗑️", key=f"clear_{process}"):
-                st.session_state[confirm_key] = True
+            if st.button("🗑️", key=f"clear_{key_start}"):
+                # Clear from session and DB
+                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                conn.commit()
+                st.experimental_rerun()
 
-            if st.session_state.get(confirm_key, False):
-                st.warning(f"Confirm removal of dates for '{process}'?")
-                confirm_col1, confirm_col2 = st.columns([1, 1])
-                with confirm_col1:
-                    if st.button("✅ Yes", key=f"yes_{process}"):
-                        st.session_state[key_start] = None
-                        st.session_state[key_end] = None
-                        c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                        conn.commit()
-                        st.session_state[confirm_key] = False
-                        st.experimental_rerun()
-                with confirm_col2:
-                    if st.button("❌ No", key=f"no_{process}"):
-                        st.session_state[confirm_key] = False
+# Save updated values to DB
+for process in processes:
+    clean_key = process.replace(" ", "_").replace("(", "").replace(")", "")
+    key_start = f"{selected_well}_{clean_key}_start"
+    key_end = f"{selected_well}_{clean_key}_end"
 
-        if start_date and end_date and start_date > end_date:
-            st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
-        elif start_date and end_date:
-            c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
-                      (selected_well, process, start_date.isoformat(), end_date.isoformat()))
-            conn.commit()
-            
+    start_val = st.session_state.get(key_start)
+    end_val = st.session_state.get(key_end)
+
+    if start_val and end_val:
+        c.execute('''
+            INSERT OR REPLACE INTO process_data (well, process, start_date, end_date)
+            VALUES (?, ?, ?, ?)
+        ''', (selected_well, process, start_val.strftime("%Y-%m-%d"), end_val.strftime("%Y-%m-%d")))
+        conn.commit()
+
+with col2:
+    st.subheader("Recorded Data")
+    c.execute('SELECT * FROM process_data WHERE well = ?', (selected_well,))
+    df = pd.DataFrame(c.fetchall(), columns=["Well", "Process", "Start Date", "End Date"])
+    st.dataframe(df)
+
+with col3:
+    st.subheader("Completion Percentage")
+    completed = df.dropna().shape[0]
+    percent_complete = (completed / len(processes)) * 100
+    st.metric("Overall Completion", f"{percent_complete:.0f}%")
