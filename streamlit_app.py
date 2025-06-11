@@ -79,6 +79,7 @@ if previous_well != selected_well:
         st.session_state[key_end] = pd.to_datetime(result[1]).date() if result and result[1] else None
 
 if role == "entry":
+    # Rig Release date input
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
     saved_rig = c.fetchone()
     rig_release_key = "rig_release"
@@ -96,11 +97,17 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Release"] = rig_release_date
 
+    # Process dates inputs with delete button and confirmation
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
-        col_start, col_end, col_del = st.sidebar.columns([2, 2, 1])
+        col_start, col_end, col_del, col_conf = st.sidebar.columns([3,3,1,3])
         key_start = f"start_{process}"
         key_end = f"end_{process}"
+        confirm_key = f"confirm_delete_{process}"
+
+        # Initialize confirmation state if not exists
+        if confirm_key not in st.session_state:
+            st.session_state[confirm_key] = False
 
         with col_start:
             default_start = st.session_state.get(key_start)
@@ -111,25 +118,28 @@ if role == "entry":
             end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
 
         with col_del:
-            if st.button("🗑️", key=f"delete_{process}", help=f"Delete dates for {process}"):
-                if st.session_state.get(f"confirm_delete_{process}") is None:
-                    st.session_state[f"confirm_delete_{process}"] = True
-                else:
-                    st.session_state[f"confirm_delete_{process}"] = not st.session_state[f"confirm_delete_{process}"]
+            if st.button("🗑️", key=f"del_{process}"):
+                st.session_state[confirm_key] = True
 
-        if st.session_state.get(f"confirm_delete_{process}"):
-            st.sidebar.warning(f"Confirm delete for **{process}**?")
-            confirm_col1, confirm_col2 = st.sidebar.columns(2)
-            if confirm_col1.button("Yes", key=f"yes_delete_{process}"):
-                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                conn.commit()
-                st.session_state[key_start] = None
-                st.session_state[key_end] = None
-                st.session_state[f"confirm_delete_{process}"] = False
-                st.experimental_rerun()
-            if confirm_col2.button("No", key=f"no_delete_{process}"):
-                st.session_state[f"confirm_delete_{process}"] = False
+        with col_conf:
+            if st.session_state[confirm_key]:
+                st.write(f"Confirm removal of dates for '{process}'?")
+                yes_col, no_col = st.columns(2)
+                with yes_col:
+                    if st.button("Yes", key=f"yes_delete_{process}"):
+                        c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                        conn.commit()
+                        if key_start in st.session_state:
+                            del st.session_state[key_start]
+                        if key_end in st.session_state:
+                            del st.session_state[key_end]
+                        st.session_state[confirm_key] = False
+                        st.experimental_rerun()
+                with no_col:
+                    if st.button("No", key=f"no_delete_{process}"):
+                        st.session_state[confirm_key] = False
 
+        # Validation and saving to DB
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
         elif start_date and end_date:
@@ -236,23 +246,14 @@ for well in wells:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
         progress = round((total_days / 120) * 100, 1)
         color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
-        gap = total_days - 120
-        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
+        progress_data.append({"Well": well, "Completion %": f"{progress}%", "Color": color})
     else:
-        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
-        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
+        progress_data.append({"Well": well, "Completion %": "0%", "Color": '#FF6347'})
 
 progress_df = pd.DataFrame(progress_data)
+progress_df = progress_df.set_index('Well')
+col3.write("Completion Percentage per Well")
+for well, row in progress_df.iterrows():
+    col3.markdown(f"<div style='background-color: {row['Color']}; padding: 6px; margin-bottom: 2px; border-radius: 5px;'>{well}: {row['Completion %']}</div>", unsafe_allow_html=True)
 
-if not progress_df.empty:
-    def color_cells(val, color):
-        return f'background-color: {color}' if color else ''
-
-    styled_df = progress_df.drop(columns=["Color"]).style.apply(
-        lambda x: [color_cells(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
-    col3.dataframe(styled_df, use_container_width=True)
-
-col3.write("### Gap Analysis")
-for gap in gap_analysis:
-    col3.write(gap)
+conn.close()
