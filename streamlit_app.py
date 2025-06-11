@@ -219,7 +219,10 @@ if not progress_df.empty:
         return f'background-color: {color}' if color else ''
     display_df = progress_df.drop(columns=["Color"])
     styled_df = display_df.style.apply(lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
+    styled_df.index = range(1, len(styled_df.data) + 1)
+    styled_df.index.name = "S/N"
     col3.dataframe(styled_df, use_container_width=True)
+
 
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
