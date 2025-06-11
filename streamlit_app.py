@@ -191,7 +191,7 @@ progress_day_df = pd.DataFrame(progress_day_data)
 
 def highlight(val):
     if isinstance(val, int):
-        if val < 0:
+        if val <= 0:
             return 'background-color: red'
         elif val < 60:
             return 'background-color: orange'
