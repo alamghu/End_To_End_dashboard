@@ -42,7 +42,7 @@ if username not in USERS:
 
 role = USERS[username]
 
-wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
+wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
 
 processes = ["Rig Release",
     "WLCTF_ UWO ➜ GGO",
