@@ -238,9 +238,14 @@ if not progress_df.empty:
         lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
         axis=1
     )
-    styled_df.index = range(1, len(styled_df.data) + 1)
-    styled_df.index.name = "S/N"
-    col3.dataframe(styled_df, use_container_width=True)
+display_df.index = range(1, len(display_df) + 1)
+display_df.index.name = "S/N"
+styled_df = display_df.style.apply(
+    lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
+    axis=1
+)
+col3.dataframe(styled_df, use_container_width=True)
+
 
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
