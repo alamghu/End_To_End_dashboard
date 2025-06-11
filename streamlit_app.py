@@ -192,11 +192,11 @@ progress_days_df = pd.DataFrame(progress_day_data)
 def color_code(val):
     if isinstance(val, int):
         if val < 60:
-            return 'background-color: red'
-        elif 60 <= val < 120:
             return 'background-color: orange'
-        else:
+        elif 60 <= val < 120:
             return 'background-color: green'
+        else:
+            return 'background-color: red'
     return ''
 
 col2.dataframe(progress_days_df.style.applymap(color_code), use_container_width=True)
