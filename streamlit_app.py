@@ -50,16 +50,16 @@ if username not in USERS:
 role = USERS[username]
 
 # Define well names
-wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
+wells = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"]
 
 # Define process stages
 processes = ["Rig Release",
-    "WLCTF_ UWO ➜ GGO",
+    "WLCTF_ UWO ➔ GGO",
     "Standalone Activity",
     "On Plot Hookup",
     "Pre-commissioning",
     "Unhook",
-    "WLCTF_GGO ➜ UWIF",
+    "WLCTF_GGO ➔ UWIF",
     "Waiting IFS Resources",
     "Frac Execution",
     "Re-Hook & commissioning",
@@ -230,22 +230,15 @@ for well in wells:
 progress_df = pd.DataFrame(progress_data)
 
 if not progress_df.empty:
-    def color_progress(val, color):
-        return f'background-color: {color}' if color else ''
+    def highlight_row(row):
+        color = progress_df.loc[row.name, "Color"]
+        return ['background-color: {}'.format(color) if color else '' for _ in row]
 
     display_df = progress_df.drop(columns=["Color"]).copy()
-    styled_df = display_df.style.apply(
-        lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
-        axis=1
-    )
-display_df.index = range(1, len(display_df) + 1)
-display_df.index.name = "S/N"
-styled_df = display_df.style.apply(
-    lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
-    axis=1
-)
-col3.dataframe(styled_df, use_container_width=True)
-
+    styled_df = display_df.style.apply(highlight_row, axis=1)
+    styled_df.index = range(1, len(display_df) + 1)
+    styled_df.index.name = "S/N"
+    col3.dataframe(styled_df, use_container_width=True)
 
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
