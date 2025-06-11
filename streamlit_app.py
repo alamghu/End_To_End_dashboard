@@ -193,7 +193,7 @@ def color_code(val):
     if isinstance(val, int):
         if val < 60:
             return 'background-color: orange'
-        elif 60 <= val < 120:
+        elif 60 <= val <= 120:
             return 'background-color: green'
         else:
             return 'background-color: red'
