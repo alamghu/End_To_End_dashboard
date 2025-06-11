@@ -111,13 +111,24 @@ if role == "entry":
             end_date = st.date_input(f"End - {process}", value=default_end, key=key_end)
 
         with col_clear:
+            confirm_key = f"confirm_clear_{process}"
             if st.button("🗑️", key=f"clear_{process}"):
-                if st.confirm(f"Are you sure you want to remove dates for '{process}'?"):
-                    st.session_state[key_start] = None
-                    st.session_state[key_end] = None
-                    c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                    conn.commit()
-                    st.experimental_rerun()
+                st.session_state[confirm_key] = True
+
+            if st.session_state.get(confirm_key, False):
+                st.warning(f"Confirm removal of dates for '{process}'?")
+                confirm_col1, confirm_col2 = st.columns([1, 1])
+                with confirm_col1:
+                    if st.button("✅ Yes", key=f"yes_{process}"):
+                        st.session_state[key_start] = None
+                        st.session_state[key_end] = None
+                        c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+                        conn.commit()
+                        st.session_state[confirm_key] = False
+                        st.experimental_rerun()
+                with confirm_col2:
+                    if st.button("❌ No", key=f"no_{process}"):
+                        st.session_state[confirm_key] = False
 
         if start_date and end_date and start_date > end_date:
             st.sidebar.error(f"Error: Start date must be before or equal to End date for {process}")
@@ -125,130 +136,4 @@ if role == "entry":
             c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
                       (selected_well, process, start_date.isoformat(), end_date.isoformat()))
             conn.commit()
-
-col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
-
-col1.header(f"Well: {selected_well}")
-for process in processes[1:]:
-    c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-    result = c.fetchone()
-    if result and result[0] and result[1]:
-        duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
-        col1.write(f"{process}: {duration} days")
-    else:
-        col1.write(f"{process}: Add dates")
-
-col2.header("KPI Visualization and Comparison")
-chart_data = []
-progress_days = []
-
-for well in wells:
-    for process in processes[1:]:
-        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, process))
-        result = c.fetchone()
-        if result and result[0] and result[1]:
-            duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
-            chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
-
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
-    rig_rel = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, "On stream"))
-    on_stream = c.fetchone()
-
-    if on_stream and on_stream[0]:
-        status = "HU Completed, On Stream"
-        val = 0
-    elif rig_rel and rig_rel[0]:
-        val = 120 - (date.today() - pd.to_datetime(rig_rel[0]).date()).days
-        status = val
-    else:
-        val = None
-        status = "No Rig Release"
-
-    progress_days.append({"Well": well, "Completion Progress Days": status})
-
-chart_df = pd.DataFrame(chart_data)
-if not chart_df.empty:
-    fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
-    col2.plotly_chart(fig)
-
-progress_days_df = pd.DataFrame(progress_days)
-
-def highlight_days(val):
-    if isinstance(val, int):
-        if val < 0:
-            return 'background-color: red'
-        elif val < 60:
-            return 'background-color: orange'
-        elif 60 <= val <= 120:
-            return 'background-color: green'
-        else:
-            return 'background-color: red'
-    return ''
-
-styled_progress_days_df = progress_days_df.style.applymap(highlight_days, subset=["Completion Progress Days"])
-col2.write("### Completion Progress Days")
-col2.dataframe(styled_progress_days_df, use_container_width=True)
-
-col3.header("Progress Overview & Gap Analysis")
-progress_data = []
-gap_analysis = []
-
-for well in wells:
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
-    rig_release = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-    on_stream = c.fetchone()
-    if rig_release and rig_release[0] and on_stream and on_stream[0]:
-        total_days = max((pd.to_datetime(on_stream[0]) - pd.to_datetime(rig_release[0])).days, 1)
-        progress = round((total_days / 120) * 100, 1)
-        color = "#32CD32" if total_days <= 120 else "#FF6347"
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
-        gap = total_days - 120
-        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
-    else:
-        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
-        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
-
-progress_df = pd.DataFrame(progress_data)
-
-if not progress_df.empty:
-    def color_progress(val, color):
-        return f'background-color: {color}' if color else ''
-
-    display_df = progress_df.drop(columns=["Color"]).copy()
-    styled_df = display_df.style.apply(
-        lambda x: [color_progress(v, progress_df.loc[x.name, "Color"]) for v in x],
-        axis=1
-    )
-    col3.dataframe(styled_df, use_container_width=True)
-
-col3.write("### Gap Analysis")
-for gap in gap_analysis:
-    col3.write(gap)
-
-# Donut chart
-c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, 'Rig Release'))
-rr = c.fetchone()
-c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, 'On stream'))
-os = c.fetchone()
-if os and os[0]:
-    remaining = 0
-    text_label = "HU Completed, On Stream"
-else:
-    if rr and rr[0]:
-        remaining = 120 - (date.today() - pd.to_datetime(rr[0]).date()).days
-        text_label = f"{remaining} days"
-    else:
-        remaining = None
-        text_label = "No Rig Release"
-
-if remaining is not None:
-    donut_df = pd.DataFrame({
-        "Status": ["Remaining", "Completed"],
-        "Days": [remaining if remaining > 0 else 0, 120 - remaining if remaining > 0 else 120]
-    })
-    fig = px.pie(donut_df, values='Days', names='Status', hole=0.5)
-    fig.update_traces(textposition='inside', textinfo='percent+label')
-    fig.update_layout(annotations=[dict(text=text_label, x=0.5, y=0.5, font_size=18, showarrow=False)])
-    col1.plotly_chart(fig, use_container_width=True)
+            
