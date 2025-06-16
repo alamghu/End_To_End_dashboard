@@ -84,13 +84,12 @@ if role == "entry":
     rig_release_key = "rig_release"
     default_rig_release = pd.to_datetime(saved_rig[0]).date() if saved_rig and saved_rig[0] else None
 
-    rig_release_date = st.sidebar.date_input(
-        "Rig Release",
-        value=default_rig_release,
-        key=rig_release_key,
-        help="Enter Rig Release Date") if default_rig_release else st.sidebar.date_input("Rig Release", key=rig_release_key)
+    if saved_rig and saved_rig[0]:
+        rig_release_date = st.sidebar.date_input("Rig Release", value=default_rig_release, key=rig_release_key, help="Rig Release already recorded for this well")
+    else:
+        rig_release_date = st.sidebar.date_input("Rig Release", key=rig_release_key)
 
-    if rig_release_date:
+    if rig_release_date and not saved_rig:
         c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
                   (selected_well, "Rig Release", rig_release_date.isoformat(), rig_release_date.isoformat()))
         conn.commit()
@@ -117,7 +116,6 @@ if role == "entry":
                       (selected_well, process, start_date.isoformat(), end_date.isoformat()))
             conn.commit()
 
-        # --- DELETE BUTTON & CONFIRMATION ---
         del_key = f"del_{process}"
         if st.sidebar.button("🗑️", key=del_key):
             st.session_state["to_delete"] = process
@@ -142,7 +140,6 @@ if role == "entry":
 
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
-# Column 1: Well being updated
 col1.header(f"Well: {selected_well}")
 total_duration = 0
 for process in processes[1:]:
@@ -155,7 +152,6 @@ for process in processes[1:]:
     else:
         col1.write(f"{process}: Add dates")
 
-# Donut Chart
 c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
 rig = c.fetchone()
 c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
@@ -178,7 +174,6 @@ fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut)
 
-# Column 2: KPI Visualization + Progress Days Table
 col2.header("KPI Visualization and Comparison")
 chart_data = []
 progress_day_data = []
@@ -223,9 +218,9 @@ def highlight(val):
             return 'background-color: red'
     return ''
 
-col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
+styled_progress = progress_day_df.style.applymap(highlight)
+col2.dataframe(styled_progress, use_container_width=True)
 
-# Column 3: Completion Percentage
 col3.header("Progress Overview & Gap Analysis")
 progress_data = []
 gap_analysis = []
@@ -239,11 +234,24 @@ for well in wells:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
         progress = round((total_days / 120) * 100, 1)
         color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data.append({'Well': well, 'Completion Percentage': f"{progress}%"})
+        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
+        gap = total_days - 120
+        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
     else:
-        progress_data.append({'Well': well, 'Completion Percentage': 'N/A'})
+        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
+        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
 progress_df = pd.DataFrame(progress_data)
-col3.dataframe(progress_df, use_container_width=True)
+if not progress_df.empty:
+    def highlight_color(val, col):
+        return f'background-color: {col}' if col else ''
+
+    styled_df = progress_df.drop(columns=["Color"]).style.apply(
+        lambda x: [highlight_color(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
+    col3.dataframe(styled_df, use_container_width=True)
+
+col3.write("### Gap Analysis")
+for gap in gap_analysis:
+    col3.write(gap)
 
 conn.close()
