@@ -252,6 +252,6 @@ if not progress_df.empty:
 
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
-    col3.write(g)
+    col3.write(gap)
 
 conn.close()
