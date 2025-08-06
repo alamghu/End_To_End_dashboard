@@ -18,7 +18,7 @@ DB_PATH = 'tracking_data.db'
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 c = conn.cursor()
 
-# Create table if not exists
+# Create tables if not exist
 c.execute('''CREATE TABLE IF NOT EXISTS process_data (
     well TEXT,
     process TEXT,
@@ -26,6 +26,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS process_data (
     end_date TEXT,
     PRIMARY KEY (well, process)
 )''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS workflow_type (
+    well TEXT PRIMARY KEY,
+    workflow TEXT
+)''')
+
 conn.commit()
 
 # Define user roles
@@ -69,11 +75,21 @@ previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 st.session_state['selected_well'] = selected_well
 
-# Dropdown: HBF or HAF
-selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"])
-st.session_state["workflow_type"] = selected_workflow  # Save for Column 1
+# Load saved workflow from DB
+c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
+saved_workflow = c.fetchone()
+default_workflow = saved_workflow[0] if saved_workflow else "HBF"
 
-# Restore session state if different well
+# Workflow dropdown (HBF / HAF)
+selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
+st.session_state["workflow_type"] = selected_workflow
+
+# Update workflow in DB if changed
+if saved_workflow is None or selected_workflow != saved_workflow[0]:
+    c.execute('REPLACE INTO workflow_type (well, workflow) VALUES (?, ?)', (selected_well, selected_workflow))
+    conn.commit()
+
+# Restore dates from DB when changing well
 if previous_well != selected_well:
     for process in processes:
         key_start = f"start_{process}"
@@ -102,7 +118,7 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Release"] = rig_release_date
 
-    # ✅ New: Rig Out Handling
+    # Rig Out
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Out"))
     saved_rigout = c.fetchone()
     rig_out_key = "rig_out"
@@ -120,7 +136,7 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Out"] = rig_out_date
 
-    # Loop through remaining processes (excluding Rig Release)
+    # Remaining processes (except Rig Release)
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
         col_start, col_end = st.sidebar.columns(2)
@@ -142,9 +158,10 @@ if role == "entry":
                       (selected_well, process, start_date.isoformat(), end_date.isoformat()))
             conn.commit()
 
+# Layout columns
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
-# ✅ Column 1: Show Well and Workflow
+# Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
 total_duration = 0
 for process in processes[1:]:
@@ -157,7 +174,7 @@ for process in processes[1:]:
     else:
         col1.write(f"{process}: Add dates")
 
-# Donut Chart
+# Donut Chart in col1
 c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
 rig = c.fetchone()
 c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
@@ -227,7 +244,7 @@ def highlight(val):
 
 col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
 
-# Column 3: Completion Percentage
+# Column 3: Completion Percentage and Gap Analysis
 col3.header("Progress Overview & Gap Analysis")
 progress_data = []
 gap_analysis = []
