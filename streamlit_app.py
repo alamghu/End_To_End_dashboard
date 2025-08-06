@@ -1,4 +1,3 @@
-###
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -52,17 +51,17 @@ wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106",
 
 # Define process stages
 processes = ["Rig Release",
-    "WLCTF_ UWO ➔ GGO",
-    "Standalone Activity",
-    "On Plot Hookup",
-    "Pre-commissioning",
-    "Unhook",
-    "WLCTF_GGO ➔ UWIF",
-    "Waiting IFS Resources",
-    "Frac Execution",
-    "Re-Hook & commissioning",
-    "Plug Removal",
-    "On stream"]
+             "WLCTF_ UWO ➔ GGO",
+             "Standalone Activity",
+             "On Plot Hookup",
+             "Pre-commissioning",
+             "Unhook",
+             "WLCTF_GGO ➔ UWIF",
+             "Waiting IFS Resources",
+             "Frac Execution",
+             "Re-Hook & commissioning",
+             "Plug Removal",
+             "On stream"]
 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
@@ -70,6 +69,11 @@ previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 st.session_state['selected_well'] = selected_well
 
+# Dropdown: HBF or HAF
+selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"])
+st.session_state["workflow_type"] = selected_workflow  # Save for Column 1
+
+# Restore session state if different well
 if previous_well != selected_well:
     for process in processes:
         key_start = f"start_{process}"
@@ -80,6 +84,7 @@ if previous_well != selected_well:
         st.session_state[key_end] = pd.to_datetime(result[1]).date() if result and result[1] else None
 
 if role == "entry":
+    # Rig Release
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
     saved_rig = c.fetchone()
     rig_release_key = "rig_release"
@@ -97,6 +102,25 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Release"] = rig_release_date
 
+    # ✅ New: Rig Out Handling
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Out"))
+    saved_rigout = c.fetchone()
+    rig_out_key = "rig_out"
+    default_rig_out = pd.to_datetime(saved_rigout[0]).date() if saved_rigout and saved_rigout[0] else None
+
+    rig_out_date = st.sidebar.date_input(
+        "Rig Out",
+        value=default_rig_out,
+        key=rig_out_key,
+        help="Enter Rig Out Date") if default_rig_out else st.sidebar.date_input("Rig Out", key=rig_out_key)
+
+    if rig_out_date:
+        c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
+                  (selected_well, "Rig Out", rig_out_date.isoformat(), rig_out_date.isoformat()))
+        conn.commit()
+        st.session_state[f"end_Rig Out"] = rig_out_date
+
+    # Loop through remaining processes (excluding Rig Release)
     for process in processes[1:]:
         st.sidebar.markdown(f"**{process}**")
         col_start, col_end = st.sidebar.columns(2)
@@ -118,33 +142,10 @@ if role == "entry":
                       (selected_well, process, start_date.isoformat(), end_date.isoformat()))
             conn.commit()
 
-        # --- DELETE BUTTON & CONFIRMATION ---
-        del_key = f"del_{process}"
-        if st.sidebar.button("🗑️", key=del_key):
-            st.session_state["to_delete"] = process
-            st.experimental_rerun()
-
-        if st.session_state.get("to_delete") == process:
-            st.sidebar.warning(f"Are you sure you want to delete dates for **{process}**?")
-            yes = st.sidebar.button("✅ Yes", key=f"yes_{process}")
-            no = st.sidebar.button("❌ No", key=f"no_{process}")
-
-            if yes:
-                c.execute('DELETE FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-                conn.commit()
-                st.session_state.pop(f"start_{process}", None)
-                st.session_state.pop(f"end_{process}", None)
-                st.session_state.pop("to_delete", None)
-                st.experimental_rerun()
-
-            if no:
-                st.session_state.pop("to_delete", None)
-                st.experimental_rerun()
-
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
-# Column 1: Well being updated
-col1.header(f"Well: {selected_well}")
+# ✅ Column 1: Show Well and Workflow
+col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
 total_duration = 0
 for process in processes[1:]:
     c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
