@@ -197,6 +197,14 @@ fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut)
 
+# Ongoing process donut
+if ongoing_label:
+    fig_donut2 = px.pie(values=[delta, kpi - delta], names=['Left', 'Elapsed'], hole=0.6)
+    fig_donut2.update_traces(textinfo='none')
+    fig_donut2.add_annotation(text=ongoing_label, x=0.5, y=0.5, font_size=14, showarrow=False)
+    col1.plotly_chart(fig_donut2)
+
+
 # Column 2: KPI Visualization + Progress Days Table
 col2.header("KPI Visualization and Comparison")
 chart_data = []
