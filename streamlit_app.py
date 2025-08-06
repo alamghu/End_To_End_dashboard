@@ -55,19 +55,7 @@ role = USERS[username]
 # Define well names
 wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
 
-# Define process stages
-processes = ["Rig Release",
-             "WLCTF_ UWO ➔ GGO",
-             "Standalone Activity",
-             "On Plot Hookup",
-             "Pre-commissioning",
-             "Unhook",
-             "WLCTF_GGO ➔ UWIF",
-             "Waiting IFS Resources",
-             "Frac Execution",
-             "Re-Hook & commissioning",
-             "Plug Removal",
-             "On stream"]
+
 # Workflow & KPIs
 workflow_kpis = {
     "HBF": [
