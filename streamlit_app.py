@@ -161,12 +161,17 @@ if role == "entry":
 # Layout columns
 col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
-# Column 1: Well name + workflow
-col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
+# Column 1: Process durations
+col1.header(f"Well: {selected_well} ({selected_workflow})")
+current_kpis = workflow_kpis[selected_workflow]
 total_duration = 0
-for process in processes[1:]:
+ongoing_label = ""
+for process, kpi in current_kpis:
     c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
     result = c.fetchone()
+    if result and result[0] and not result[1]:
+        delta = kpi - (date.today() - pd.to_datetime(result[0]).date()).days
+        ongoing_label = f"Ongoing: {process} ({delta} days left vs KPI {kpi})"
     if result and result[0] and result[1]:
         duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
         total_duration += duration
@@ -174,12 +179,11 @@ for process in processes[1:]:
     else:
         col1.write(f"{process}: Add dates")
 
-# Donut Chart in col1
-c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
+# Donut charts
+c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "WLCTF_ UWO ➔ GGO"))
 rig = c.fetchone()
 c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
 onstream = c.fetchone()
-
 if onstream and onstream[0]:
     remaining = 0
     label = "HU Completed, On Stream"
@@ -191,11 +195,10 @@ else:
     else:
         remaining = 120
         label = "No Rig Date"
-
-fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
-fig_donut.update_traces(textinfo='none')
-fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
-col1.plotly_chart(fig_donut)
+fig_donut1 = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
+fig_donut1.update_traces(textinfo='none')
+fig_donut1.add_annotation(text=label, x=0.5, y=0.5, font_size=16, showarrow=False)
+col1.plotly_chart(fig_donut1)
 
 # Ongoing process donut
 if ongoing_label:
