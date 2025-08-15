@@ -231,10 +231,10 @@ if pd.notna(start_date):
 else:
         remaining_days = kpi_days
         label = f"{ongoing_process}\nNot Started"
-    else:
-        remaining_days = 0
-        kpi_days = 1  # to avoid divide by zero
-        label = "No Ongoing Process"
+     else:
+         remaining_days = 0
+         kpi_days = 1  # to avoid divide by zero
+         label = "No Ongoing Process"
 
 fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
