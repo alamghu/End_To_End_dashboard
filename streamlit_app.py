@@ -157,7 +157,7 @@ if role == "entry":
             conn.commit()
 
 # Layout columns
-col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
+col1, col2, col3 = st.columns((2.5, 5.5, 2), gap='medium')
 
 # Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
