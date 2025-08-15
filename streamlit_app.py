@@ -222,7 +222,7 @@ if ongoing_process:
     start_date = row['start_date']
 
 # Get KPI from the kpi_data table
-    c.execute('SELECT kpi_days FROM kpi_data WHERE process = ?', (ongoing_process,))
+    c.execute('SELECT kpi_dict FROM kpi_data WHERE process = ?', (ongoing_process,))
     kpi_row = c.fetchone()
     kpi_value = int(kpi_row[0]) if kpi_row else 0
     
