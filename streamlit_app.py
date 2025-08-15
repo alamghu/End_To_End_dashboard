@@ -212,6 +212,30 @@ fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut)
 
+
+# 2nd Donut Chart in col1
+c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
+rig = c.fetchone()
+c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
+onstream = c.fetchone()
+
+if onstream and onstream[0]:
+    remaining = 0
+    label = "HU Completed, On Stream"
+else:
+    if rig and rig[0]:
+        delta = (date.today() - pd.to_datetime(rig[0]).date()).days
+        remaining = 120 - delta
+        label = f"{remaining} days"
+    else:
+        remaining = 120
+        label = "No Rig Date"
+
+fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
+fig_donut.update_traces(textinfo='none')
+fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
+col1.plotly_chart(fig_donut)
+
 # Column 2: KPI Visualization + Progress Days Table
 col2.header("KPI Visualization and Comparison")
 chart_data = []
