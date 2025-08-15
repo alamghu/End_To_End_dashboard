@@ -241,8 +241,6 @@ if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group', title='Process Visualization')
     for process_name, kpi in kpi_days.items():
             fig.add_hline(y=kpi, line_dash="dot", line_color="red",
-                          annotation_text=f"{process_name} KPI: {kpi}d",
-                          annotation_position="top left")
     st.plotly_chart(fig, use_container_width=True)
 
     #col2.plotly_chart(fig)
