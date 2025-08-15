@@ -83,7 +83,6 @@ kpi_dict = {
     "Plug Removal": 1,
     "On stream": 1
 } 
-kpi_days = kpi_dict.get(ongoing_process, 0)
 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
