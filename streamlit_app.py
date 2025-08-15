@@ -93,6 +93,8 @@ st.session_state['selected_well'] = selected_well
 c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
 saved_workflow = c.fetchone()
 default_workflow = saved_workflow[0] if saved_workflow else "HBF"
+data = pd.read_sql_query("SELECT * FROM well_data", conn)
+
 
 # Workflow dropdown (HBF / HAF)
 selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
