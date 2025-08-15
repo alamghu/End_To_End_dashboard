@@ -190,24 +190,55 @@ for process in processes[1:]:
         col1.write(f"{process}: Add dates (KPI: {kpi_days.get(process, '-')})")
 
 # Donut Chart in col1
-c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
-rig = c.fetchone()
-c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
-onstream = c.fetchone()
+# Get all processes and their dates for the selected well
+c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ?', (selected_well,))
+rows = c.fetchall()
+df = pd.DataFrame(rows, columns=['process', 'start_date', 'end_date'])
+df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
+df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
 
-if onstream and onstream[0]:
-    remaining = 0
-    label = "HU Completed, On Stream"
+# Identify the ongoing process
+ongoing_process = None
+
+# Case 1: A process with a start_date and no end_date (ongoing)
+in_progress = df[(df['start_date'].notna()) & (df['end_date'].isna())]
+if not in_progress.empty:
+    ongoing_process = in_progress.iloc[0]['process']
+# Case 2: Use the next process after the last completed one
 else:
-    if rig and rig[0]:
-        delta = (date.today() - pd.to_datetime(rig[0]).date()).days
-        remaining = 120 - delta
-        label = f"{remaining} days"
-    else:
-        remaining = 120
-        label = "No Rig Date"
+    completed = df[df['end_date'].notna()].sort_values(by='end_date')
+    if not completed.empty:
+        last_completed = completed.iloc[-1]['process']
+        all_processes = df['process'].tolist()
+        try:
+            idx = all_processes.index(last_completed)
+            ongoing_process = all_processes[idx + 1] if idx + 1 < len(all_processes) else None
+        except:
+            ongoing_process = None
 
-fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
+if ongoing_process:
+    row = df[df['process'] == ongoing_process].iloc[0]
+    start_date = row['start_date']
+
+    # Get KPI from the kpi_data table
+    c.execute('SELECT kpi_days FROM kpi_data WHERE process = ?', (ongoing_process,))
+    kpi_row = c.fetchone()
+    kpi_days = int(kpi_row[0]) if kpi_row else 0
+
+    if pd.notna(start_date):
+        delta_days = (date.today() - start_date.date()).days
+        remaining_days = max(kpi_days - delta_days, 0)
+        percentage_remaining = round((remaining_days / kpi_days) * 100, 1) if kpi_days > 0 else 0
+        label = f"{ongoing_process}\n{remaining_days} days left ({percentage_remaining}%)"
+    else:
+        remaining_days = kpi_days
+        label = f"{ongoing_process}\nNot Started"
+else:
+    remaining_days = 0
+    kpi_days = 1  # to avoid divide by zero
+    label = "No Ongoing Process"
+
+fig_donut = px.pie(values=[remaining_days, kpi_days - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut)
