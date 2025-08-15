@@ -215,49 +215,69 @@ col1.plotly_chart(fig_donut)
 col2.header("KPI Visualization and Comparison")
 chart_data = []
 progress_day_data = []
+cumulative_data = []
 
 for well in wells:
-    for process in processes[1:]:
-        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (well, process))
-        result = c.fetchone()
-        if result and result[0] and result[1]:
-            duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
-            chart_data.append({'Well': well, 'Process': process, 'Duration': duration, 'KPI': kpi_days.get(process)})
+        cumulative_sum = 0
+        for process in processes:
+            row = data[(data['well_name']==well) & (data['process']==process)]
+            if not row.empty and row.iloc[0]['start_date'] and row.iloc[0]['end_date']:
+                sd = datetime.strptime(row.iloc[0]['start_date'], '%Y-%m-%d').date()
+                ed = datetime.strptime(row.iloc[0]['end_date'], '%Y-%m-%d').date()
+                duration = (ed - sd).days
+                chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
+                cumulative_sum += duration
+                cumulative_data.append({'Well': well, 'Process': process, 'Cumulative': cumulative_sum})
 
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
-    rig = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, "On stream"))
-    ons = c.fetchone()
+    chart_df = pd.DataFrame(chart_data)
+    cumulative_df = pd.DataFrame(cumulative_data)
 
-    if ons and ons[0]:
-        progress_day_data.append({"Well": well, "Completion Progress Days": "HU Completed, On Stream"})
-    elif rig and rig[0]:
-        delta = 120 - (date.today() - pd.to_datetime(rig[0]).date()).days
-        progress_day_data.append({"Well": well, "Completion Progress Days": delta})
-    else:
-        progress_day_data.append({"Well": well, "Completion Progress Days": None})
+    if not chart_df.empty:
+        fig = go.Figure()
+        
+        # Bar traces per well (Duration)
+        for well in chart_df['Well'].unique():
+            df_w = chart_df[chart_df['Well'] == well]
+            fig.add_trace(go.Bar(
+                x=df_w['Process'],
+                y=df_w['Duration'],
+                name=f"{well} Duration"
+            ))
+        
+        # KPI line
+        processes_unique = chart_df['Process'].unique()
+        kpi_values = [kpi_days.get(proc, 0) for proc in processes_unique]
+        fig.add_trace(go.Scatter(
+            x=processes_unique,
+            y=kpi_values,
+            mode='lines+markers',
+            name='KPI',
+            line=dict(color='red', dash='dot'),
+            marker=dict(color='red'),
+            yaxis='y1'
+        ))
 
-chart_df = pd.DataFrame(chart_data)
-if not chart_df.empty:
-    fig = go.Figure()
-    
-# Add bar traces per well
-    for well in chart_df['Well'].unique():
-        df_w = chart_df[chart_df['Well']==well]
-        fig.add_trace(go.Bar(x=df_w['Process'], y=df_w['Duration'], name=well))
+        # Cumulative line (secondary y-axis)
+        for well in cumulative_df['Well'].unique():
+            df_cum = cumulative_df[cumulative_df['Well'] == well]
+            fig.add_trace(go.Scatter(
+                x=df_cum['Process'],
+                y=df_cum['Cumulative'],
+                mode='lines+markers',
+                name=f"{well} Cumulative",
+                line=dict(dash='solid'),
+                marker=dict(symbol='circle'),
+                yaxis='y2'
+            ))
 
-# Add KPI line across all processes
-    processes_unique = chart_df['Process'].unique()
-    kpi_values = [kpi_days.get(proc, 0) for proc in processes_unique]
-    fig.add_trace(go.Scatter(
-        x=processes_unique,
-        y=kpi_values,
-        mode='lines+markers',
-        name='KPI',
-        line=dict(color='red', dash='solid'),
-        marker=dict(color='red')
-    ))
-    fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
+        fig.update_layout(
+            barmode='group',
+            title='Process Duration per Well with KPI and Cumulative Days',
+            xaxis_title='Process',
+            yaxis=dict(title='Days (Duration & KPI)'),
+            yaxis2=dict(title='Cumulative Days', overlaying='y', side='right')
+        )
+
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
