@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import date, datetime
-import altair as alt
 import plotly.express as px
 
 st.set_page_config(
@@ -11,7 +10,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded")
 
-alt.themes.enable("dark")
 
 # Database setup
 DB_PATH = 'tracking_data.db'
