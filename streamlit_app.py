@@ -237,18 +237,9 @@ for well in wells:
     else:
         progress_day_data.append({"Well": well, "Completion Progress Days": None})
 
-kpi_values = [kpi_days.get(proc, 0) for proc in chart_df['Process'].unique()]
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
-    fig.add_trace(go.Scatter(
-    x=chart_df['Process'].unique(),
-    y=kpi_values,
-    mode='lines+markers',
-    name='KPI',
-    line=dict(color='red', dash='dot'),
-    marker=dict(color='red')
-))
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
