@@ -304,7 +304,7 @@ if not chart_df.empty:
 
 # Add KPI line across all processes
     processes_unique = chart_df['Process'].unique()
-    kpi_values = [kpi_days.get(proc, 0) for proc in processes_unique]
+    kpi_values = [kpi_dict.get(proc, 0) for proc in processes_unique]
     fig.add_trace(go.Scatter(
         x=processes_unique,
         y=kpi_values,
