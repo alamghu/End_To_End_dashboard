@@ -55,18 +55,33 @@ wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106",
 
 # Define process stages
 processes = ["Rig Release",
-             "WLCTF_ UWO ➔ GGO": 15,
-             "Standalone Activity": 5,
-             "On Plot Hookup": 35,
-             "Pre-commissioning": 7,
-             "Unhook": 8,
-             "WLCTF_GGO ➔ UWIF": 0,
-             "Waiting IFS Resources": 14,
-             "Frac Execution": 26,
-             "Re-Hook & commissioning": 8,
-             "Plug Removal": 1,
-             "On stream": 1]
+             "WLCTF_ UWO ➔ GGO",
+             "Standalone Activity",
+             "On Plot Hookup",
+             "Pre-commissioning",
+             "Unhook",
+             "WLCTF_GGO ➔ UWIF",
+             "Waiting IFS Resources",
+             "Frac Execution":,
+             "Re-Hook & commissioning",
+             "Plug Removal",
+             "On stream"]
 
+# KPI process
+kpi_days = {
+    "Rig Release": 4,
+    "WLCTF_ UWO ➔ GGO": 15,
+    "Standalone Activity": 5,
+    "On Plot Hookup": 35,
+    "Pre-commissioning": 7,
+    "Unhook": 8,
+    "WLCTF_GGO ➔ UWIF": 0,
+    "Waiting IFS Resources": 14,
+    "Frac Execution": 26,
+    "Re-Hook & commissioning": 8,
+    "Plug Removal": 1,
+    "On stream": 1]
+} 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
 previous_well = st.session_state.get('selected_well', None)
