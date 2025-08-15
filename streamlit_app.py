@@ -3,6 +3,7 @@ import pandas as pd
 import sqlite3
 from datetime import date, datetime
 import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(
     page_title="End To End Tracking Dashboard",
