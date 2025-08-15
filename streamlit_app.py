@@ -199,12 +199,13 @@ df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
 df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
 
 # Identify the ongoing process
-ongoing_process = None
+ongoing_process = None #assuming no process is ongoing.
 
 # Case 1: A process with a start_date and no end_date (ongoing)
 in_progress = df[(df['start_date'].notna()) & (df['end_date'].isna())]
 if not in_progress.empty:
-    ongoing_process = in_progress.iloc[0]['process']
+    ongoing_process = in_progress.iloc[0]['process']  # processes that have a start date but no end date.If found, the first one in the list is considered as ongoing.
+    
 # Case 2: Use the next process after the last completed one
 else:
     completed = df[df['end_date'].notna()].sort_values(by='end_date')
@@ -237,7 +238,7 @@ else:
     remaining_days = 0
     label = "No Ongoing Process"
 
-fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.8)
+fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=20, showarrow=False)
 col1.plotly_chart(fig_donut)
@@ -261,7 +262,7 @@ else:
         remaining = 120
         label = "No Rig Date"
 
-fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.8)
+fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=20, showarrow=False)
 col1.plotly_chart(fig_donut)
