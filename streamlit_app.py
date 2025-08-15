@@ -256,9 +256,7 @@ if not chart_df.empty:
         line=dict(color='red', dash='dot'),
         marker=dict(color='red')
     ))
-    fig.update_layout(chart_df, x='Process', y='Duration', color='Well', barmode='group')
-    #fig.update_layout(barmode='group', title='Process Duration per Well with KPI', xaxis_title='Process', yaxis_title='Days')
-
+    fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
     col2.plotly_chart(fig)
     #fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
 
