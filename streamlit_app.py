@@ -4,6 +4,7 @@ import sqlite3
 from datetime import date, datetime
 import plotly.express as px
 import plotly.graph_objects as go
+import calendar
 
 st.set_page_config(
     page_title="End To End Tracking Dashboard",
@@ -318,10 +319,56 @@ if not chart_df.empty:
 fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
 col2.plotly_chart(fig)
 
+
+# Prepare data for Column 2 table
+progress_day_data = []
+
+for well in wells:
+    # Get the current process (latest with start date)
+    c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
+    proc = c.fetchone()
+    if proc:
+        process_name, start, end = proc
+        start_dt = pd.to_datetime(start) if start else None
+        end_dt = pd.to_datetime(end) if end else None
+        
+        # Total days on this process
+        total_days = (end_dt - start_dt).days if start_dt and end_dt else None
+        
+        # Percentage against KPI (assume KPI = 120 days max)
+        percent_kpi = round((total_days / 120) * 100, 1) if total_days else None
+        
+        # Remaining days against 120
+        remaining_days = 120 - total_days if total_days else None
+        
+        # Month of Onstream
+        c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+        onstream = c.fetchone()
+        month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
+        
+        progress_day_data.append({
+            "Well": well,
+            "Current Process": process_name,
+            "Total Days": total_days,
+            "Percentage vs KPI": f"{percent_kpi}%" if percent_kpi is not None else None,
+            "Remaining Days": remaining_days,
+            "Month of Onstream": month_onstream
+        })
+    else:
+        progress_day_data.append({
+            "Well": well,
+            "Current Process": None,
+            "Total Days": None,
+            "Percentage vs KPI": None,
+            "Remaining Days": None,
+            "Month of Onstream": None
+        })
+
 progress_day_df = pd.DataFrame(progress_day_data)
 
+# Highlighting remaining days
 def highlight(val):
-    if isinstance(val, int):
+    if isinstance(val, (int, float)):
         if val <= 0:
             return 'background-color: red'
         elif val < 60:
@@ -332,8 +379,7 @@ def highlight(val):
             return 'background-color: red'
     return ''
 
-col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
-
+col2.dataframe(progress_day_df.style.applymap(highlight, subset=['Remaining Days']), use_container_width=True)
 
     
 # Column 3: Completion Percentage and Gap Analysis
