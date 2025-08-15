@@ -337,10 +337,10 @@ for well in wells:
         # Total days on current process
         total_days = (end_dt - start_dt).days if start_dt and end_dt else None
 
-        # Percentage vs KPI (120 days)
+        # Percentage vs Process KPI ((of curnt process))
         percent_kpi = round((total_days / 120) * 100, 1) if total_days else None
 
-        # Remaining days against KPI
+        # Remaining days against KPI (of curnt process)
         remaining_days = 120 - total_days if total_days else None
 
         # Month of Onstream
@@ -355,9 +355,9 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": process_name,
-            "Total Days": total_days,
-            "Percentage vs KPI": f"{percent_kpi}%" if percent_kpi is not None else None,
-            "Remaining Days": remaining_days,
+            "Total days on Current Process": total_days,
+            "Percentage vs KPI of of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
+            "Remaining Days of Current Process": remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
