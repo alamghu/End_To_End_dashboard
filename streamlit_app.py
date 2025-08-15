@@ -93,7 +93,6 @@ st.session_state['selected_well'] = selected_well
 c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
 saved_workflow = c.fetchone()
 default_workflow = saved_workflow[0] if saved_workflow else "HBF"
-data = pd.read_sql_query("SELECT * FROM well_data", conn)
 
 
 # Workflow dropdown (HBF / HAF)
@@ -176,6 +175,7 @@ if role == "entry":
 
 # Layout columns
 col1, col2, col3 = st.columns((2.5, 5.5, 2), gap='medium')
+data = pd.read_sql_query("SELECT * FROM well_data", conn)
 
 # Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
