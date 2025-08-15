@@ -183,7 +183,7 @@ for process in processes[1:]:
     if result and result[0] and result[1]:
         duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
         total_duration += duration
-        col1.write(f"{process}: {duration} days")
+        col1.write(f"{process}: {duration} days (KPI: {kpi_days.get(process, '-')})")
     else:
         col1.write(f"{process}: Add dates")
 
