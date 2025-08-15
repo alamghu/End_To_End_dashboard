@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import date, datetime
-import altair as alt
 import plotly.express as px
 
 st.set_page_config(
@@ -10,8 +9,6 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded")
-
-alt.themes.enable("dark")
 
 # Database setup
 DB_PATH = 'tracking_data.db'
@@ -52,8 +49,10 @@ if username not in USERS:
 
 role = USERS[username]
 
+
 # Define well names
 wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
+
 
 # Define process stages
 processes = ["Rig Release",
@@ -69,25 +68,30 @@ processes = ["Rig Release",
              "Plug Removal",
              "On stream"]
 
+
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
 previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 st.session_state['selected_well'] = selected_well
 
+
 # Load saved workflow from DB
 c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
 saved_workflow = c.fetchone()
-default_workflow = saved_workflow[0] if saved_workflow else "HBF"
+default_workflow = saved_workflow[0] if saved_workflow else "HAF"
+
 
 # Workflow dropdown (HBF / HAF)
 selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
 st.session_state["workflow_type"] = selected_workflow
 
+
 # Update workflow in DB if changed
 if saved_workflow is None or selected_workflow != saved_workflow[0]:
     c.execute('REPLACE INTO workflow_type (well, workflow) VALUES (?, ?)', (selected_well, selected_workflow))
     conn.commit()
+
 
 # Restore dates from DB when changing well
 if previous_well != selected_well:
@@ -159,7 +163,7 @@ if role == "entry":
             conn.commit()
 
 # Layout columns
-col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
+col1, col2, col3 = st.columns((2.5, 5, 2), gap='medium')
 
 # Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
@@ -314,4 +318,3 @@ with clm3:
 
         # Export Button
         st.download_button("Export Completion Summary to CSV", data=summary_df_display.to_csv(index=False), file_name="completion_summary.csv", mime="text/csv")
-
