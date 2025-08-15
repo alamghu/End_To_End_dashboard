@@ -228,7 +228,7 @@ if pd.notna(start_date):
         remaining_days = max(kpi_value - delta_days, 0)
         percentage_remaining = round((remaining_days / kpi_value) * 100, 1) if kpi_value > 0 else 0
         label = f"{ongoing_process}\n{remaining_days} days left ({percentage_remaining}%)"
-    else:
+else:
         remaining_days = kpi_days
         label = f"{ongoing_process}\nNot Started"
 else:
