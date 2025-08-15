@@ -62,7 +62,7 @@ processes = ["Rig Release",
              "Unhook",
              "WLCTF_GGO ➔ UWIF",
              "Waiting IFS Resources",
-             "Frac Execution":,
+             "Frac Execution",
              "Re-Hook & commissioning",
              "Plug Removal",
              "On stream"]
