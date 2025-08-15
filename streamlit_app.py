@@ -185,7 +185,7 @@ for process in processes[1:]:
         total_duration += duration
         col1.write(f"{process}: {duration} days (KPI: {kpi_days.get(process, '-')})")
     else:
-        col1.write(f"{process}: Add dates")
+        col1.write(f"{process}: Add dates (KPI: {kpi_days.get(process, '-')})")
 
 # Donut Chart in col1
 c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
