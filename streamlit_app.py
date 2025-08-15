@@ -257,6 +257,40 @@ def highlight(val):
 
 col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
 
+with col2:
+    st.subheader("📊 KPI Comparison")
+    chart_data = pd.DataFrame(columns=["Well", "Process", "Duration", "KPI"])
+    for well in wells:
+        for process in processes:
+            row = data[(data["well_name"] == well) & (data["process"] == process)]
+            if not row.empty and row.iloc[0]['start_date'] and row.iloc[0]['end_date']:
+                sd = datetime.strptime(row.iloc[0]['start_date'], "%Y-%m-%d").date()
+                ed = datetime.strptime(row.iloc[0]['end_date'], "%Y-%m-%d").date()
+                duration = (ed - sd).days
+                chart_data = chart_data.append({
+                    "Well": well,
+                    "Process": process,
+                    "Duration": duration,
+                    "KPI": kpi_days.get(process, None)
+                }, ignore_index=True)
+
+    fig = px.bar(
+        chart_data,
+        x="Process",
+        y="Duration",
+        color="Well",
+        barmode="group",
+        title="Process Duration per Well"
+    )
+
+    # Add KPI line
+    for process_name, kpi in kpi_days.items():
+        fig.add_hline(y=kpi, line_dash="dot", line_color="red",
+                      annotation_text=f"{process_name} KPI: {kpi}d",
+                      annotation_position="top left")
+
+    st.plotly_chart(fig, use_container_width=True)
+    
 # Column 3: Completion Percentage and Gap Analysis
 col3.header("Progress Overview & Gap Analysis")
 progress_data = []
