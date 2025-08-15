@@ -238,8 +238,7 @@ for well in wells:
 
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
-    fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group', title='Process Visualization')
-    for process_name, kpi in kpi_days.items()
+    fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
