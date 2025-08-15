@@ -277,7 +277,7 @@ if not chart_df.empty:
         yaxis=dict(title='Days (Duration & KPI)'),
         yaxis2=dict(title='Cumulative Days', overlaying='y', side='right')
     )
-  col2.plotly_chart(fig)
+col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
 
