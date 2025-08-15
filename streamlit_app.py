@@ -240,7 +240,7 @@ for well in wells:
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
-    fig.add_scatter(x='Process', y='Duration', mode='lines', name='KPI', line=dict(color='#4CC005'))
+    #fig.add_scatter(x='Process', y='Duration', mode='lines', name='KPI', line=dict(color='#4CC005'))
 
     col2.plotly_chart(fig)
 
