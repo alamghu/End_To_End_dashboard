@@ -221,20 +221,21 @@ if ongoing_process:
     row = df[df['process'] == ongoing_process].iloc[0]
     start_date = row['start_date']
 
-# Get KPI from the kpi_data table
-kpi_value = kpi_dict.get(ongoing_process, 0)
-if pd.notna(start_date):
+# Get KPI from the kpi_dict
+kpi_value = kpi_dict.get(ongoing_process, 0) if ongoing_process else 1  # default 1 to avoid div by zero
+
+if ongoing_process:
+    if pd.notna(start_date):
         delta_days = (date.today() - start_date.date()).days
         remaining_days = max(kpi_value - delta_days, 0)
         percentage_remaining = round((remaining_days / kpi_value) * 100, 1) if kpi_value > 0 else 0
         label = f"{ongoing_process}\n{remaining_days} days left ({percentage_remaining}%)"
-else:
-        remaining_days = kpi_days
+    else:
+        remaining_days = kpi_value
         label = f"{ongoing_process}\nNot Started"
 else:
-        remaining_days = 0
-        kpi_days = 1  # to avoid divide by zero
-        label = "No Ongoing Process"
+    remaining_days = 0
+    label = "No Ongoing Process"
 
 fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
