@@ -223,9 +223,7 @@ if ongoing_process:
 
 # Get KPI from the kpi_data table
 kpi_value = kpi_dict.get(ongoing_process, 0)
-
-
-    if pd.notna(start_date):
+if pd.notna(start_date):
         delta_days = (date.today() - start_date.date()).days
         remaining_days = max(kpi_value - delta_days, 0)
         percentage_remaining = round((remaining_days / kpi_value) * 100, 1) if kpi_value > 0 else 0
