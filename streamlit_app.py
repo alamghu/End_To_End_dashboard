@@ -242,7 +242,7 @@ if not chart_df.empty:
     #for process_name, kpi in kpi_days.items():
     fig.add_shape(type='line', x0=-0.5, x1=len(processes)-0.5, y0=kpi, y1=kpi,
                           line=dict(color='red', dash='dot'), xref='x', yref='y')
-            fig.add_annotation(x=len(processes)-1, y=kpi, text=f"{process_name} KPI: {kpi}d", showarrow=False, yshift=10)
+            #fig.add_annotation(x=len(processes)-1, y=kpi, text=f"{process_name} KPI: {kpi}d", showarrow=False, yshift=10)
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
