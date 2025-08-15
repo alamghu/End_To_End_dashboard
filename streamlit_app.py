@@ -175,7 +175,6 @@ if role == "entry":
 
 # Layout columns
 col1, col2, col3 = st.columns((2.5, 5.5, 2), gap='medium')
-data = pd.read_sql_query("SELECT * FROM well_data", conn)
 
 # Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
@@ -214,6 +213,8 @@ fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False
 col1.plotly_chart(fig_donut)
 
 # Column 2: KPI Visualization + Progress Days Table
+data = pd.read_sql_query("SELECT * FROM process_data", conn)
+
 col2.header("KPI Visualization and Comparison")
 chart_data = []
 progress_day_data = []
