@@ -221,15 +221,16 @@ if ongoing_process:
     row = df[df['process'] == ongoing_process].iloc[0]
     start_date = row['start_date']
 
-    # Get KPI from the kpi_data table
+# Get KPI from the kpi_data table
     c.execute('SELECT kpi_days FROM kpi_data WHERE process = ?', (ongoing_process,))
     kpi_row = c.fetchone()
-    kpi_days = int(kpi_row[0]) if kpi_row else 0
+    kpi_value = int(kpi_row[0]) if kpi_row else 0
+    
 
     if pd.notna(start_date):
         delta_days = (date.today() - start_date.date()).days
-        remaining_days = max(kpi_days - delta_days, 0)
-        percentage_remaining = round((remaining_days / kpi_days) * 100, 1) if kpi_days > 0 else 0
+        remaining_days = max(kpi_value - delta_days, 0)
+        percentage_remaining = round((remaining_days / kpi_value) * 100, 1) if kpi_value > 0 else 0
         label = f"{ongoing_process}\n{remaining_days} days left ({percentage_remaining}%)"
     else:
         remaining_days = kpi_days
@@ -239,7 +240,7 @@ else:
     kpi_days = 1  # to avoid divide by zero
     label = "No Ongoing Process"
 
-fig_donut = px.pie(values=[remaining_days, kpi_days - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
+fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut)
