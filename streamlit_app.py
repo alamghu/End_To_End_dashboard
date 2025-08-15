@@ -217,7 +217,7 @@ chart_data = []
 progress_day_data = []
 cumulative_data = []
 
-for well in wells:
+    for well in wells:
         cumulative_sum = 0
         for process in processes:
             row = data[(data['well_name']==well) & (data['process']==process)]
@@ -277,8 +277,7 @@ for well in wells:
             yaxis=dict(title='Days (Duration & KPI)'),
             yaxis2=dict(title='Cumulative Days', overlaying='y', side='right')
         )
-
-    col2.plotly_chart(fig)
+  col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
 
