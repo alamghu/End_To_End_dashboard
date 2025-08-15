@@ -69,7 +69,7 @@ processes = ["Rig Release",
              "On stream"]
 
 # KPI process
-kpi_days = {
+kpi_dict = {
     "Rig Release": 4,
     "WLCTF_ UWO ➔ GGO": 15,
     "Standalone Activity": 5,
@@ -83,6 +83,8 @@ kpi_days = {
     "Plug Removal": 1,
     "On stream": 1
 } 
+kpi_days = kpi_dict.get(ongoing_process, 0)
+
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
 previous_well = st.session_state.get('selected_well', None)
