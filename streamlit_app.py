@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import date, datetime
+import altair as alt
 import plotly.express as px
 
 st.set_page_config(
@@ -9,6 +10,8 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded")
+
+alt.themes.enable("dark")
 
 # Database setup
 DB_PATH = 'tracking_data.db'
@@ -49,10 +52,8 @@ if username not in USERS:
 
 role = USERS[username]
 
-
 # Define well names
 wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
-
 
 # Define process stages
 processes = ["Rig Release",
@@ -68,30 +69,25 @@ processes = ["Rig Release",
              "Plug Removal",
              "On stream"]
 
-
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
 previous_well = st.session_state.get('selected_well', None)
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 st.session_state['selected_well'] = selected_well
 
-
 # Load saved workflow from DB
 c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
 saved_workflow = c.fetchone()
-default_workflow = saved_workflow[0] if saved_workflow else "HAF"
-
+default_workflow = saved_workflow[0] if saved_workflow else "HBF"
 
 # Workflow dropdown (HBF / HAF)
 selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
 st.session_state["workflow_type"] = selected_workflow
 
-
 # Update workflow in DB if changed
 if saved_workflow is None or selected_workflow != saved_workflow[0]:
     c.execute('REPLACE INTO workflow_type (well, workflow) VALUES (?, ?)', (selected_well, selected_workflow))
     conn.commit()
-
 
 # Restore dates from DB when changing well
 if previous_well != selected_well:
@@ -163,7 +159,7 @@ if role == "entry":
             conn.commit()
 
 # Layout columns
-col1, col2, col3 = st.columns((2.5, 5, 2), gap='medium')
+col1, col2, col3 = st.columns((1.5, 4.5, 2), gap='medium')
 
 # Column 1: Well name + workflow
 col1.header(f"Well: {selected_well} ({st.session_state['workflow_type']})")
@@ -249,72 +245,36 @@ def highlight(val):
 col2.dataframe(progress_day_df.style.applymap(highlight), use_container_width=True)
 
 # Column 3: Completion Percentage and Gap Analysis
-# --- Column 3 (Restored & Enhanced) ---
-with clm3:
-    st.subheader("Completion Progress Days")
-    summary_list = []
+col3.header("Progress Overview & Gap Analysis")
+progress_data = []
+gap_analysis = []
 
-    for w in wells:
-        well_df = df[df['Well'] == w]
-        if not well_df.empty:
-            rig_release = well_df.loc[well_df['Process'] == processes[0], 'Start'].values[0]
-            on_stream = well_df.loc[well_df['Process'] == processes[-1], 'End'].values[0]
+for well in wells:
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    rig = c.fetchone()
+    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+    ons = c.fetchone()
+    if rig and rig[0] and ons and ons[0]:
+        total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
+        progress = round((total_days / 120) * 100, 1)
+        color = '#32CD32' if total_days <= 120 else '#FF6347'
+        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
+        gap = total_days - 120
+        gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
+    else:
+        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
+        gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-            if pd.notna(rig_release) and pd.notna(on_stream):
-                total_days = (pd.to_datetime(on_stream) - pd.to_datetime(rig_release)).days
-                status_color = 'green' if total_days <= 120 else 'red'
-                completion_percentage = min(100, round(100 * total_days / 120))
-                summary_list.append({
-                    'Well': w,
-                    'Total Days': total_days,
-                    'Completion %': f"{completion_percentage}%",
-                    'Color': status_color
-                })
+progress_df = pd.DataFrame(progress_data)
 
-    if summary_list:
-        summary_df = pd.DataFrame(summary_list)
-        summary_df_display = summary_df[['Well', 'Total Days', 'Completion %']].copy()
+if not progress_df.empty:
+    def color_cells(val, color):
+        return f'background-color: {color}' if color else ''
 
-        def highlight_row(row):
-            color = row['Color']
-            return [f'background-color: {color}; color: white' if col != 'Well' else '' for col in row.index]
+    styled_df = progress_df.drop(columns=["Color"]).style.apply(
+        lambda x: [color_cells(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
+    col3.dataframe(styled_df, use_container_width=True)
 
-        st.dataframe(summary_df_display.style.apply(highlight_row, axis=1))
-
-        # Gap Analysis
-        st.subheader("Gap Analysis")
-        for i, row in summary_df.iterrows():
-            if row['Total Days'] > 120:
-                st.write(f"{row['Well']}: Over target by {row['Total Days'] - 120} days")
-            elif row['Total Days'] < 120:
-                st.write(f"{row['Well']}: Under target by {120 - row['Total Days']} days")
-            else:
-                st.write(f"{row['Well']}: On target")
-
-        # Monthly Compliance Chart
-        st.subheader("Monthly Compliance Summary")
-        df_monthly = df.copy()
-        df_monthly['Month'] = pd.to_datetime(df_monthly['Start'], errors='coerce').dt.to_period('M')
-
-        comp_summary = []
-        for month, group in df_monthly.groupby('Month'):
-            wells_this_month = group['Well'].unique()
-            for well in wells_this_month:
-                rig_release = df[(df['Well'] == well) & (df['Process'] == processes[0])]['Start'].values
-                on_stream = df[(df['Well'] == well) & (df['Process'] == processes[-1])]['End'].values
-                if rig_release.size > 0 and on_stream.size > 0:
-                    days = (pd.to_datetime(on_stream[0]) - pd.to_datetime(rig_release[0])).days
-                    comp_summary.append({
-                        'Month': str(month),
-                        'Well': well,
-                        'Days': days
-                    })
-
-        df_comp = pd.DataFrame(comp_summary)
-        if not df_comp.empty:
-            df_comp_avg = df_comp.groupby('Month').mean(numeric_only=True).reset_index()
-            fig_monthly = px.bar(df_comp_avg, x='Month', y='Days', title="Average Completion Days Per Month")
-            st.plotly_chart(fig_monthly)
-
-        # Export Button
-        st.download_button("Export Completion Summary to CSV", data=summary_df_display.to_csv(index=False), file_name="completion_summary.csv", mime="text/csv")
+col3.write("### Gap Analysis")
+for gap in gap_analysis:
+    col3.write(gap)   
