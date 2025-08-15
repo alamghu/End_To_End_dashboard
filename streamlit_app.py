@@ -239,7 +239,7 @@ else:
 
 fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
-fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
+fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=15, showarrow=False)
 col1.plotly_chart(fig_donut)
 
 
