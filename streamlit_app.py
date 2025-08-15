@@ -222,10 +222,8 @@ if ongoing_process:
     start_date = row['start_date']
 
 # Get KPI from the kpi_data table
-    kpi_days = kpi_dict.get(ongoing_process, 0)
-    kpi_row = c.fetchone()
-    kpi_value = int(kpi_row[0]) if kpi_row else 0
-    
+kpi_value = kpi_dict.get(ongoing_process, 0)
+
 
     if pd.notna(start_date):
         delta_days = (date.today() - start_date.date()).days
@@ -280,7 +278,8 @@ for well in wells:
         result = c.fetchone()
         if result and result[0] and result[1]:
             duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
-            chart_data.append({'Well': well, 'Process': process, 'Duration': duration, 'KPI': kpi_days.get(process)})
+            chart_data.append({'Well': well, 'Process': process, 'Duration': duration, 'KPI': kpi_dict.get(process)})
+
 
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
     rig = c.fetchone()
