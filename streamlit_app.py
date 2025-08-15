@@ -80,7 +80,7 @@ kpi_days = {
     "Frac Execution": 26,
     "Re-Hook & commissioning": 8,
     "Plug Removal": 1,
-    "On stream": 1]
+    "On stream": 1
 } 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
