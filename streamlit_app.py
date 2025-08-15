@@ -221,7 +221,7 @@ for well in wells:
         result = c.fetchone()
         if result and result[0] and result[1]:
             duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
-            chart_data.append({'Well': well, 'Process': process, 'Duration': duration})
+            chart_data.append({'Well': well, 'Process': process, 'Duration': duration, 'KPI': kpi_days.get(process)})
 
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
     rig = c.fetchone()
@@ -238,7 +238,7 @@ for well in wells:
 
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
-    fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
+    fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group', title='Process Visualization'))
     col2.plotly_chart(fig)
 
 progress_day_df = pd.DataFrame(progress_day_data)
