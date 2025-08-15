@@ -186,9 +186,9 @@ for process in processes[1:]:
     if result and result[0] and result[1]:
         duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
         total_duration += duration
-        col1.write(f"{process}: {duration} days (KPI: {kpi_value.get(process, '-')})")
+        col1.write(f"{process}: {duration} days (KPI: {kpi_dict.get(process, '-')})")
     else:
-        col1.write(f"{process}: Add dates (KPI: {kpi_value.get(process, '-')})")
+        col1.write(f"{process}: Add dates (KPI: {kpi_dict.get(process, '-')})")
 
 # Donut Chart in col1
 # Get all processes and their dates for the selected well
