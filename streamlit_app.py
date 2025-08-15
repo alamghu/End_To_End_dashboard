@@ -240,6 +240,7 @@ for well in wells:
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = go.Figure()
+    
 # Add bar traces per well
     for well in chart_df['Well'].unique():
         df_w = chart_df[chart_df['Well']==well]
@@ -253,12 +254,11 @@ if not chart_df.empty:
         y=kpi_values,
         mode='lines+markers',
         name='KPI',
-        line=dict(color='red', dash='dot'),
+        line=dict(color='red', dash='solid'),
         marker=dict(color='red')
     ))
     fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
     col2.plotly_chart(fig)
-    #fig = px.bar(chart_df, x='Process', y='Duration', color='Well', barmode='group')
 
 progress_day_df = pd.DataFrame(progress_day_data)
 
