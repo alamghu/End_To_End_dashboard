@@ -254,35 +254,26 @@ fig_donut.update_traces(textinfo='none')
 fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
 col1.plotly_chart(fig_donut, use_container_width=True)
 # -------------------------------------------------------------------
-
 # 2nd Donut Chart in col1 (120-day window)
 c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
 rig = c.fetchone()
 c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
 onstream = c.fetchone()
 
-if onstream and onstream[0]:
-    remaining = 0
-    label2 = "HU Completed, On Stream"
-else:
-    if rig and rig[0]:
-        delta = (date.today() - pd.to_datetime(rig[0]).date()).days
-        remaining = max(120 - delta, 0)
-        label2 = f"{remaining} days"
-    else:
-        remaining = 120
-        label2 = "No Rig Date"
-
-#fig_donut2 = px.pie(values=[remaining, max(120 - remaining, 0)], names=['Remaining', 'Elapsed'], hole=0.6)
-#fig_donut2.update_traces(textinfo='none')
-#fig_donut2.add_annotation(text=label2, x=0.5, y=0.5, font_size=18, showarrow=False)
-#col1.plotly_chart(fig_donut2, use_container_width=True)
-
-
-# --- Donut chart: % Used vs KPI (120 days) ---
-used_days = total_days  # or whatever variable tracks elapsed process days
 kpi_days = 120
 
+if onstream and onstream[0]:
+    used_days = kpi_days
+    label2 = "HU Completed, On Stream"
+elif rig and rig[0]:
+    delta = (date.today() - pd.to_datetime(rig[0]).date()).days
+    used_days = min(delta, kpi_days)  # cap at KPI
+    label2 = f"{used_days} days"
+else:
+    used_days = 0
+    label2 = "No Rig Date"
+
+# --- Donut chart: % Used vs KPI (120 days) ---
 fig_donut2 = px.pie(
     values=[used_days, max(kpi_days - used_days, 0)],
     names=['Used', 'Remaining to KPI'],
@@ -294,6 +285,8 @@ fig_donut2.add_annotation(
     x=0.5, y=0.5, font_size=18, showarrow=False
 )
 col1.plotly_chart(fig_donut2, use_container_width=True)
+
+
 
 # Column 2: KPI Visualization + Progress Days Table
 col2.header("KPI Visualization and Comparison")
