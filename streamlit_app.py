@@ -273,9 +273,26 @@ else:
         remaining = 120
         label2 = "No Rig Date"
 
-fig_donut2 = px.pie(values=[remaining, max(120 - remaining, 0)], names=['Remaining', 'Elapsed'], hole=0.6)
+#fig_donut2 = px.pie(values=[remaining, max(120 - remaining, 0)], names=['Remaining', 'Elapsed'], hole=0.6)
+#fig_donut2.update_traces(textinfo='none')
+#fig_donut2.add_annotation(text=label2, x=0.5, y=0.5, font_size=18, showarrow=False)
+#col1.plotly_chart(fig_donut2, use_container_width=True)
+
+
+# --- Donut chart: % Used vs KPI (120 days) ---
+used_days = total_days  # or whatever variable tracks elapsed process days
+kpi_days = 120
+
+fig_donut2 = px.pie(
+    values=[used_days, max(kpi_days - used_days, 0)],
+    names=['Used', 'Remaining to KPI'],
+    hole=0.6
+)
 fig_donut2.update_traces(textinfo='none')
-fig_donut2.add_annotation(text=label2, x=0.5, y=0.5, font_size=18, showarrow=False)
+fig_donut2.add_annotation(
+    text=f"{(used_days/kpi_days)*100:.1f}%", 
+    x=0.5, y=0.5, font_size=18, showarrow=False
+)
 col1.plotly_chart(fig_donut2, use_container_width=True)
 
 # Column 2: KPI Visualization + Progress Days Table
