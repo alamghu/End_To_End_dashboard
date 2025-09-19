@@ -10,8 +10,8 @@ st.set_page_config(
     page_title="End To End Tracking Dashboard",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded")
-
+    initial_sidebar_state="expanded"
+)
 
 # Database setup
 DB_PATH = 'tracking_data.db'
@@ -52,10 +52,10 @@ if username not in USERS:
 
 role = USERS[username]
 
-# Define well names
+# Define well names (kept as you had them)
 wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
 
-# Define process stages
+# Define process stages (kept your original names/order)
 processes = ["Rig Release",
              "WLCTF_ UWO ➔ GGO",
              "Standalone Activity",
@@ -69,7 +69,7 @@ processes = ["Rig Release",
              "Plug Removal",
              "On stream"]
 
-# KPI process
+# KPI process (kept your original KPI dictionary)
 kpi_dict = {
     "Rig Release": 4,
     "WLCTF_ UWO ➔ GGO": 15,
@@ -83,7 +83,7 @@ kpi_dict = {
     "Re-Hook & commissioning": 8,
     "Plug Removal": 1,
     "On stream": 1
-} 
+}
 
 # Layout
 st.sidebar.header("Well Selection and Data Entry")
@@ -95,7 +95,6 @@ st.session_state['selected_well'] = selected_well
 c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
 saved_workflow = c.fetchone()
 default_workflow = saved_workflow[0] if saved_workflow else "HBF"
-
 
 # Workflow dropdown (HBF / HAF)
 selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
@@ -123,11 +122,11 @@ if role == "entry":
     rig_release_key = "rig_release"
     default_rig_release = pd.to_datetime(saved_rig[0]).date() if saved_rig and saved_rig[0] else None
 
-    rig_release_date = st.sidebar.date_input(
+    rig_release_date = (st.sidebar.date_input(
         "Rig Release",
         value=default_rig_release,
         key=rig_release_key,
-        help="Enter Rig Release Date") if default_rig_release else st.sidebar.date_input("Rig Release", key=rig_release_key)
+        help="Enter Rig Release Date") if default_rig_release else st.sidebar.date_input("Rig Release", key=rig_release_key))
 
     if rig_release_date:
         c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
@@ -135,17 +134,17 @@ if role == "entry":
         conn.commit()
         st.session_state[f"end_Rig Release"] = rig_release_date
 
-    # Rig Out
+    # Rig Out (note: 'Rig Out' is not in processes list; you store it separately)
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Out"))
     saved_rigout = c.fetchone()
     rig_out_key = "rig_out"
     default_rig_out = pd.to_datetime(saved_rigout[0]).date() if saved_rigout and saved_rigout[0] else None
 
-    rig_out_date = st.sidebar.date_input(
+    rig_out_date = (st.sidebar.date_input(
         "Rig Out",
         value=default_rig_out,
         key=rig_out_key,
-        help="Enter Rig Out Date") if default_rig_out else st.sidebar.date_input("Rig Out", key=rig_out_key)
+        help="Enter Rig Out Date") if default_rig_out else st.sidebar.date_input("Rig Out", key=rig_out_key))
 
     if rig_out_date:
         c.execute('REPLACE INTO process_data VALUES (?, ?, ?, ?)',
@@ -192,60 +191,71 @@ for process in processes[1:]:
         col1.write(f"{process}: Add dates (KPI: {kpi_dict.get(process, '-')})")
 
 # Donut Chart in col1
-# Get all processes and their dates for the selected well
+# Fetch db rows for the selected well and merge with full process order to preserve sequence
 c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ?', (selected_well,))
 rows = c.fetchall()
-df = pd.DataFrame(rows, columns=['process', 'start_date', 'end_date'])
+df_db = pd.DataFrame(rows, columns=['process', 'start_date', 'end_date']) if rows else pd.DataFrame(columns=['process', 'start_date', 'end_date'])
+df_full = pd.DataFrame({'process': processes})
+df = pd.merge(df_full, df_db, on='process', how='left')
 df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
 df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
 
-# Identify the ongoing process
-ongoing_process = None #assuming no process is ongoing.
+# ---------- Updated Ongoing Process Logic for Donut Chart ----------
+ongoing_process = None
 
-# Case 1: A process with a start_date and no end_date (ongoing)
+# Case 1: Any process has started but not finished
 in_progress = df[(df['start_date'].notna()) & (df['end_date'].isna())]
 if not in_progress.empty:
-    ongoing_process = in_progress.iloc[0]['process']  # processes that have a start date but no end date.If found, the first one in the list is considered as ongoing.
-    
-# Case 2: Use the next process after the last completed one
+    # pick the first in the defined sequence that is in progress
+    ongoing_process = in_progress.iloc[0]['process']
 else:
+    # Case 2: If no unfinished process, use next process after last completed
     completed = df[df['end_date'].notna()].sort_values(by='end_date')
     if not completed.empty:
         last_completed = completed.iloc[-1]['process']
-        all_processes = df['process'].tolist()
         try:
-            idx = all_processes.index(last_completed)
-            ongoing_process = all_processes[idx + 1] if idx + 1 < len(all_processes) else None
-        except:
+            idx = processes.index(last_completed)
+            ongoing_process = processes[idx + 1] if idx + 1 < len(processes) else None
+        except ValueError:
             ongoing_process = None
+    else:
+        # Case 3: Nothing started yet → first process
+        ongoing_process = processes[0] if len(processes) > 0 else None
 
+# Calculate KPI and Remaining Days
 if ongoing_process:
     row = df[df['process'] == ongoing_process].iloc[0]
     start_date = row['start_date']
+    kpi_value = kpi_dict.get(ongoing_process, 1)  # fallback to 1 to avoid div by zero
 
-# Get KPI from the kpi_dict
-kpi_value = kpi_dict.get(ongoing_process, 0) if ongoing_process else 1  # default 1 to avoid div by zero
+    # handle KPI 0 (if defined as 0 in dictionary) - treat as 1 for calculation but will show 0% if needed
+    if kpi_value <= 0:
+        kpi_value_calc = 1
+    else:
+        kpi_value_calc = kpi_value
 
-if ongoing_process:
     if pd.notna(start_date):
-        delta_days = (date.today() - start_date.date()).days
-        remaining_days = max(kpi_value - delta_days, 0)
-        percentage_remaining = round((remaining_days / kpi_value) * 100, 1) if kpi_value > 0 else 0
+        elapsed_days = (date.today() - start_date.date()).days
+        remaining_days = max(kpi_value - elapsed_days, 0) if kpi_value > 0 else 0
+        percentage_remaining = round((remaining_days / kpi_value_calc) * 100, 1) if kpi_value_calc > 0 else 0
         label = f"{ongoing_process}\n{remaining_days} days left ({percentage_remaining}%)"
     else:
-        remaining_days = kpi_value
+        remaining_days = kpi_value if kpi_value > 0 else 0
+        percentage_remaining = 100 if kpi_value > 0 else 0
         label = f"{ongoing_process}\nNot Started"
 else:
     remaining_days = 0
+    kpi_value = 1
     label = "No Ongoing Process"
 
-fig_donut = px.pie(values=[remaining_days, kpi_value - remaining_days], names=['Remaining', 'Elapsed'], hole=0.6)
+# Draw donut chart
+fig_donut = px.pie(values=[remaining_days, max(kpi_value - remaining_days, 0)], names=['Remaining', 'Elapsed'], hole=0.6)
 fig_donut.update_traces(textinfo='none')
-fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=20, showarrow=False)
-col1.plotly_chart(fig_donut)
+fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=18, showarrow=False)
+col1.plotly_chart(fig_donut, use_container_width=True)
+# -------------------------------------------------------------------
 
-
-# 2nd Donut Chart in col1
+# 2nd Donut Chart in col1 (120-day window)
 c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "Rig Release"))
 rig = c.fetchone()
 c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, "On stream"))
@@ -253,20 +263,20 @@ onstream = c.fetchone()
 
 if onstream and onstream[0]:
     remaining = 0
-    label = "HU Completed, On Stream"
+    label2 = "HU Completed, On Stream"
 else:
     if rig and rig[0]:
         delta = (date.today() - pd.to_datetime(rig[0]).date()).days
-        remaining = 120 - delta
-        label = f"{remaining} days"
+        remaining = max(120 - delta, 0)
+        label2 = f"{remaining} days"
     else:
         remaining = 120
-        label = "No Rig Date"
+        label2 = "No Rig Date"
 
-fig_donut = px.pie(values=[remaining, 120 - remaining], names=['Remaining', 'Elapsed'], hole=0.6)
-fig_donut.update_traces(textinfo='none')
-fig_donut.add_annotation(text=label, x=0.5, y=0.5, font_size=20, showarrow=False)
-col1.plotly_chart(fig_donut)
+fig_donut2 = px.pie(values=[remaining, max(120 - remaining, 0)], names=['Remaining', 'Elapsed'], hole=0.6)
+fig_donut2.update_traces(textinfo='none')
+fig_donut2.add_annotation(text=label2, x=0.5, y=0.5, font_size=18, showarrow=False)
+col1.plotly_chart(fig_donut2, use_container_width=True)
 
 # Column 2: KPI Visualization + Progress Days Table
 col2.header("KPI Visualization and Comparison")
@@ -280,7 +290,6 @@ for well in wells:
         if result and result[0] and result[1]:
             duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 1)
             chart_data.append({'Well': well, 'Process': process, 'Duration': duration, 'KPI': kpi_dict.get(process)})
-
 
     c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, "Rig Release"))
     rig = c.fetchone()
@@ -298,13 +307,13 @@ for well in wells:
 chart_df = pd.DataFrame(chart_data)
 if not chart_df.empty:
     fig = go.Figure()
-    
-# Add bar traces per well
-    for well in chart_df['Well'].unique():
-        df_w = chart_df[chart_df['Well']==well]
-        fig.add_trace(go.Bar(x=df_w['Process'], y=df_w['Duration'], name=well))
 
-# Add KPI line across all processes
+    # Add bar traces per well
+    for well_name in chart_df['Well'].unique():
+        df_w = chart_df[chart_df['Well'] == well_name]
+        fig.add_trace(go.Bar(x=df_w['Process'], y=df_w['Duration'], name=well_name))
+
+    # Add KPI line across all processes (uses the unique processes present in chart_df)
     processes_unique = chart_df['Process'].unique()
     kpi_values = [kpi_dict.get(proc, 0) for proc in processes_unique]
     fig.add_trace(go.Scatter(
@@ -315,18 +324,17 @@ if not chart_df.empty:
         line=dict(color='red', dash='solid'),
         marker=dict(color='red')
     ))
-    
-fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
-col2.plotly_chart(fig)
 
+    fig.update_layout(barmode='group', xaxis_title='Process', yaxis_title='Days')
+    col2.plotly_chart(fig, use_container_width=True)
+else:
+    col2.write("No chart data available. Add start/end dates for processes to see KPI comparison.")
 
 # Prepare data for Column 2 table
-
-
 progress_data = []
 
 for well in wells:
-    # Get current process (latest process with start date)
+    # Get current process (latest process with end_date)
     c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
     proc = c.fetchone()
     if proc:
@@ -334,14 +342,14 @@ for well in wells:
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
 
-        # Total days on current process
-        total_days = (end_dt - start_dt).days if start_dt and end_dt else None
+        # Total days on current process (if both start and end exist)
+        total_days = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # Percentage vs Process KPI ((of curnt process))
-        percent_kpi = round((total_days / 120) * 100, 1) if total_days else None
+        # Percentage vs Process KPI ((of current process)) — here you used 120 as reference previously.
+        percent_kpi = round((total_days / 120) * 100, 1) if total_days is not None else None
 
-        # Remaining days against KPI (of curnt process)
-        remaining_days = 120 - total_days if total_days else None
+        # Remaining days against KPI (of current process)
+        remaining_days = 120 - total_days if total_days is not None else None
 
         # Month of Onstream
         c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
@@ -349,15 +357,15 @@ for well in wells:
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
         # Completion color and gap
-        row_color = '#32CD32' if total_days and total_days <= 120 else '#FF6347'
-        gap_text = f"{'Over' if remaining_days < 0 else 'Under'} target by {abs(remaining_days)} days" if remaining_days is not None else "Missing data"
+        row_color = '#32CD32' if total_days is not None and total_days <= 120 else '#FF6347'
+        gap_text = f"{'Over' if (remaining_days is not None and remaining_days < 0) else 'Under'} target by {abs(remaining_days)} days" if remaining_days is not None else "Missing data"
 
         progress_data.append({
             "Well": well,
             "Current Process": process_name,
             "Total days on Current Process": total_days,
-            "Percentage vs KPI of of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
-            "Remaining Days of Current Process": remaining_days,
+            "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
+            "Remaining Days": remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -366,8 +374,8 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": None,
-            "Total Days": None,
-            "Percentage vs KPI": None,
+            "Total days on Current Process": None,
+            "Percentage vs KPI of Current Process": None,
             "Remaining Days": None,
             "Month of Onstream": None,
             "Row Color": None,
@@ -399,17 +407,17 @@ col2.markdown("""
 
 # Apply row coloring and cell-level coloring
 if not progress_df.empty:
+    # Use the stored Row Color per row to color the entire row
     styled_df = progress_df.drop(columns=["Row Color"]).style.apply(
         lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1
     ).applymap(highlight_remaining, subset=['Remaining Days'])
-
     col2.dataframe(styled_df, use_container_width=True)
+else:
+    col2.write("No progress data available.")
 
-
-    
 # Column 3: Completion Percentage and Gap Analysis
 col3.header("Progress Overview & Gap Analysis")
-progress_data = []
+progress_data_col3 = []
 gap_analysis = []
 
 for well in wells:
@@ -421,23 +429,25 @@ for well in wells:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
         progress = round((total_days / 120) * 100, 1)
         color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
+        progress_data_col3.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
         gap = total_days - 120
         gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
     else:
-        progress_data.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
+        progress_data_col3.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
         gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-progress_df = pd.DataFrame(progress_data)
+progress_df_col3 = pd.DataFrame(progress_data_col3)
 
-if not progress_df.empty:
+if not progress_df_col3.empty:
     def color_cells(val, color):
         return f'background-color: {color}' if color else ''
 
-    styled_df = progress_df.drop(columns=["Color"]).style.apply(
-        lambda x: [color_cells(v, progress_df.loc[x.name, "Color"]) for v in x], axis=1)
-    col3.dataframe(styled_df, use_container_width=True)
+    styled_df_col3 = progress_df_col3.drop(columns=["Color"]).style.apply(
+        lambda x: [color_cells(v, progress_df_col3.loc[x.name, "Color"]) for v in x], axis=1)
+    col3.dataframe(styled_df_col3, use_container_width=True)
+else:
+    col3.write("No completion data available.")
 
 col3.write("### Gap Analysis")
 for gap in gap_analysis:
-    col3.write(gap)   
+    col3.write(gap)
