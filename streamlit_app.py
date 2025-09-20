@@ -370,26 +370,26 @@ for well in wells:
         #row_color = '#32CD32' if total_days is not None and total_days <= 120 else '#FF6347'
         #gap_text = f"{'Over' if (remaining_days is not None and remaining_days < 0) else 'Under'} target by {abs(remaining_days)} days" if remaining_days is not None else "Missing data"
       # Completion color and gap (traffic light system)
-if total_days is not None:
-    if total_days <= 90:
-        row_color = '#32CD32'   # Green
-    elif total_days <= 120:
-        row_color = '#FFD700'   # Yellow
+    if total_days is not None:
+        if total_days <= 90:
+            row_color = '#32CD32'   # Green
+        elif total_days <= 120:
+            row_color = '#FFD700'   # Yellow
+        else:
+            row_color = '#FF6347'   # Red
     else:
-        row_color = '#FF6347'   # Red
-else:
-    row_color = '#D3D3D3'       # Grey (missing data)
+        row_color = '#D3D3D3'       # Grey (missing data)
 
-# Gap text
-if remaining_days is not None:
-    if remaining_days < 0:
-        gap_text = f"Over target by {abs(remaining_days)} days"
-    elif remaining_days == 0:
-        gap_text = "On target"
+    # Gap text
+    if remaining_days is not None:
+        if remaining_days < 0:
+            gap_text = f"Over target by {abs(remaining_days)} days"
+        elif remaining_days == 0:
+            gap_text = "On target"
+        else:
+            gap_text = f"Under target by {remaining_days} days"
     else:
-        gap_text = f"Under target by {remaining_days} days"
-else:
-    gap_text = "Missing data"
+        gap_text = "Missing data"
 
 
         progress_data.append({
