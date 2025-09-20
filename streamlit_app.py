@@ -416,30 +416,25 @@ for well in wells:
 
 progress_df = pd.DataFrame(progress_data)
 
-# Cell-level highlight for Remaining Days
+# Highlight function for Remaining Days cell
 def highlight_remaining(val):
-    if isinstance(val, (int, float)):
+    if isinstance(val,(int,float)):
         if val <= 0:
-            return 'background-color: red'
+            return 'background-color: red; color:white'
         elif val <= 60:
             return 'background-color: orange'
         else:
             return 'background-color: green'
     return ''
 
-# Column 2: Display legend and table
 col2.header("Well Progress Dashboard")
-
-# Add legend
 col2.markdown("""
 **Legend:**  
-- **Row Color:** green = within KPI, red = exceeded KPI  
+- **Row Color:** green = within KPI, yellow = near KPI, red = exceeded KPI  
 - **Remaining Days Cell:** green > 60, orange 0–60, red ≤ 0
 """)
 
-# Apply row coloring and cell-level coloring
 if not progress_df.empty:
-    # Use the stored Row Color per row to color the entire row
     styled_df = progress_df.drop(columns=["Row Color"]).style.apply(
         lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1
     ).applymap(highlight_remaining, subset=['Remaining Days'])
