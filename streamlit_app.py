@@ -381,7 +381,7 @@ for well in wells:
         percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None else None
 
         # Remaining days against KPI of current process
-        remaining_days = process_kpi - total_days_current if total_days_current is not None else None
+        current_process_remaining_days = process_kpi - total_days_current if total_days_current is not None else None
 
         # Month of Onstream
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
@@ -414,7 +414,7 @@ for well in wells:
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
-            "Remaining Days": remaining_days,
+            "Remaining Days of Current Process": current_process_remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -426,7 +426,7 @@ for well in wells:
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
-            "Remaining Days": None,
+            "Remaining Days of Current Proces": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
