@@ -464,6 +464,67 @@ if not progress_df.empty:
     col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No progress data available.")
+#-------------------------- to check--------------------------------
+import plotly.graph_objects as go
+
+# --- Filter wells that are On Stream ---
+onstream_df = progress_df[progress_df['Month of Onstream'].notnull() & progress_df['Total days on Well'].notnull()]
+
+# --- If no wells on stream, handle gracefully ---
+if not onstream_df.empty:
+    # --- Group by Month and calculate metrics ---
+    month_order = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    # Average On Stream days per month
+    avg_days_per_month = onstream_df.groupby('Month of Onstream')['Total days on Well'].mean().reindex(month_order).fillna(0)
+
+    # Compliance per well: 100% if completed <= KPI days, 0% if exceeded
+    onstream_df['Compliance'] = onstream_df.apply(lambda x: 100 if x['Total days on Well'] <= 120 else 0, axis=1)
+    # Average compliance per month
+    avg_compliance_per_month = onstream_df.groupby('Month of Onstream')['Compliance'].mean().reindex(month_order).fillna(100)
+
+    # --- Overall summary ---
+    overall_avg_compliance = avg_compliance_per_month.mean()
+    overall_avg_days = onstream_df['Total days on Well'].mean()
+
+    # --- Display summary text ---
+    col2.markdown(f"**Average compliance of all On Stream wells:** {overall_avg_compliance:.1f}%")
+    col2.markdown(f"**Average number of On Stream days of all On Stream wells:** {overall_avg_days:.1f} days")
+
+    # --- Create dual-axis chart ---
+    fig_summary = go.Figure()
+    fig_summary.add_trace(go.Bar(
+        x=month_order,
+        y=avg_days_per_month,
+        name='Average On Stream Days',
+        yaxis='y1',
+        marker_color='lightblue'
+    ))
+    fig_summary.add_trace(go.Scatter(
+        x=month_order,
+        y=avg_compliance_per_month,
+        name='Average Compliance %',
+        yaxis='y2',
+        mode='lines+markers',
+        marker_color='darkgreen'
+    ))
+
+    # Layout with dual y-axis
+    fig_summary.update_layout(
+        title="Monthly Average On Stream Days and Compliance",
+        xaxis_title="Month",
+        yaxis=dict(title="Average On Stream Days", side='left', range=[0, max(avg_days_per_month.max()*1.2, 150)]),
+        yaxis2=dict(title="Average Compliance %", side='right', overlaying='y', range=[0, 110]),
+        legend=dict(x=0.01, y=0.99)
+    )
+
+    # Show chart under table
+    col2.plotly_chart(fig_summary, use_container_width=True)
+
+else:
+    col2.write("No wells are on stream to calculate monthly summary.")
 
 
 # ---------------------- Column 3: Gap Analysis ----------------------
