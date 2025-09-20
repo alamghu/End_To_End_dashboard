@@ -388,23 +388,23 @@ for well in wells:
 
         # Completion color (traffic lights)
         if total_days is not None:
-            if total_days <= 90:
+            if total_days <= 100:
                 row_color = '#32CD32'  # Green
             elif total_days <= 120:
                 row_color = '#FFD700'  # Yellow
             else:
                 row_color = '#FF6347'  # Red
         else:
-            row_color = '#D3D3D3'  # Grey if missing
+            row_color = '#cccaca'  # Grey if missing
 
         # Gap / Status text
-        if remaining_days is not None:
-            if remaining_days < 0:
-                gap_text = f"Over target by {abs(remaining_days)} days"
-            elif remaining_days == 0:
+        if total_days is not None:
+            if total_days < 120:
+                gap_text = f"Under target by {abs(120-total_days)} days"
+            elif total_days == 120:
                 gap_text = "On target"
             else:
-                gap_text = f"Under target by {remaining_days} days"
+                gap_text = f"Over target by {total_days-120} days"
         else:
             gap_text = "Missing data"
 
