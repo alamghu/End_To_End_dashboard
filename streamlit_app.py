@@ -342,24 +342,6 @@ else:
 
 # ------------------- Column 2: Well Progress Dashboard -------------------
 
-# ------------------- Column 2: Well Progress Dashboard -------------------
-
-# KPI process (kept your original KPI dictionary)
-kpi_dict = {
-    "Rig Release": 4,
-    "WLCTF_ UWO ➔ GGO": 15,
-    "Standalone Activity": 5,
-    "On Plot Hookup": 35,
-    "Pre-commissioning": 7,
-    "Unhook": 8,
-    "WLCTF_GGO ➔ UWIF": 0,
-    "Waiting IFS Resources": 14,
-    "Frac Execution": 26,
-    "Re-Hook & commissioning": 8,
-    "Plug Removal": 1,
-    "On stream": 1
-}
-
 progress_data = []
 
 for well in wells:
@@ -392,11 +374,11 @@ for well in wells:
         # Total days on current process
         total_days_current = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # ✅ Get KPI for current process from dictionary (default = 120 if not found)
-        process_kpi = kpi_dict.get(process_name, 120)
+        # KPI for current process (pull from your KPI dataset; here we use 120 if not available)
+        process_kpi = 120
 
         # Percentage vs KPI of current process
-        percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None and process_kpi > 0 else None
+        percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None else None
 
         # Remaining days against KPI of current process
         remaining_days = process_kpi - total_days_current if total_days_current is not None else None
@@ -404,7 +386,7 @@ for well in wells:
         # Month of Onstream
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
-        # Completion color (traffic lights based on total days of the whole well cycle)
+        # Completion color (traffic lights)
         if total_days is not None:
             if total_days <= 90:
                 row_color = '#32CD32'  # Green
@@ -429,7 +411,6 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": process_name,
-            "KPI (days)": process_kpi,
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
@@ -442,7 +423,6 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": None,
-            "KPI (days)": None,
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
@@ -480,6 +460,63 @@ if not progress_df.empty:
     col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No progress data available.")
+
+# ------------------- Monthly Summary Chart under Table -------------------
+onstream_df = progress_df[progress_df['Month of Onstream'].notnull() & progress_df['Total days on Well'].notnull()]
+
+if not onstream_df.empty:
+    # Order months
+    month_order = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    # Average On Stream days per month
+    avg_days_per_month = onstream_df.groupby('Month of Onstream')['Total days on Well'].mean().reindex(month_order).fillna(0)
+    
+    # Compliance: 100% if <= KPI (120 days), 0% if > KPI
+    onstream_df['Compliance'] = onstream_df['Total days on Well'].apply(lambda x: 100 if x <= 120 else 0)
+    avg_compliance_per_month = onstream_df.groupby('Month of Onstream')['Compliance'].mean().reindex(month_order).fillna(100)
+    
+    # Overall averages
+    overall_avg_compliance = avg_compliance_per_month.mean()
+    overall_avg_days = onstream_df['Total days on Well'].mean()
+    
+    # Display summary text
+    col2.markdown(f"**Average compliance of all On Stream wells:** {overall_avg_compliance:.1f}%")
+    col2.markdown(f"**Average number of On Stream days of all On Stream wells:** {overall_avg_days:.1f} days")
+    
+    # Plot dual-axis chart
+    import plotly.graph_objects as go
+    fig_summary = go.Figure()
+    fig_summary.add_trace(go.Bar(
+        x=month_order,
+        y=avg_days_per_month,
+        name='Average On Stream Days',
+        yaxis='y1',
+        marker_color='lightblue'
+    ))
+    fig_summary.add_trace(go.Scatter(
+        x=month_order,
+        y=avg_compliance_per_month,
+        name='Average Compliance %',
+        yaxis='y2',
+        mode='lines+markers',
+        marker_color='darkgreen'
+    ))
+    
+    fig_summary.update_layout(
+        title="Monthly Average On Stream Days and Compliance",
+        xaxis_title="Month",
+        yaxis=dict(title="Average On Stream Days", side='left', range=[0, max(avg_days_per_month.max()*1.2, 150)]),
+        yaxis2=dict(title="Average Compliance %", side='right', overlaying='y', range=[0, 110]),
+        legend=dict(x=0.01, y=0.99)
+    )
+    
+    col2.plotly_chart(fig_summary, use_container_width=True)
+else:
+    col2.write("No wells are on stream to calculate monthly summary.")
+
 
 
 # ------------------- Monthly Summary Chart under Table -------------------
