@@ -435,15 +435,15 @@ for well in wells:
 progress_df = pd.DataFrame(progress_data)
 
 # Highlight function for Current Process Remaining Days cell
-#def highlight_remaining(val):
-#    if isinstance(val,(int,float)):
-#        if val <= 0:
-#            return 'background-color: red; color:white'
-#        elif val <= 60:
-#            return 'background-color: orange'
-#        else:
-#            return 'background-color: green'
-#    return ''
+def highlight_remaining(val):
+    if isinstance(val,(int,float)):
+        if val <= 0:
+            return 'background-color: red; color:white'
+        elif val <= 60:
+            return 'background-color: orange'
+        else:
+            return 'background-color: green'
+    return ''
 
 # Display table with traffic light coloring
 col2.header("Well Progress Dashboard")
