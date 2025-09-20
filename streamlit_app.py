@@ -340,54 +340,53 @@ if not chart_df.empty:
 else:
     col2.write("No chart data available. Add start/end dates for processes to see KPI comparison.")
 
+# ------------------- Column 2: Well Progress Dashboard -------------------
 
-# ---------------------- Column 2: Well Progress Dashboard Table ----------------------
-# ---------------------- Column 2: Well Progress Dashboard Table ----------------------
 progress_data = []
 
 for well in wells:
-    # --- Get well process info ---
+    # Get current process (latest process with end_date)
     c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
     proc = c.fetchone()
     
-    # --- Get Rig Out and On Stream dates ---
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Out'))
-    rig_out = c.fetchone()
+    # Get Rig Release and On Stream dates for total_days calculation
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    rig = c.fetchone()
     c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-    on_stream = c.fetchone()
-
+    onstream = c.fetchone()
+    
     if proc:
         process_name, start, end = proc
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
 
-        # --- Total days on the well (from Rig Out till today or On Stream) ---
-        if rig_out and rig_out[0]:
-            rig_out_dt = pd.to_datetime(rig_out[0])
-            if on_stream and on_stream[0]:
-                total_days = (pd.to_datetime(on_stream[0]) - rig_out_dt).days
+        # Total days since Rig Out until today or On Stream date
+        if rig and rig[0]:
+            rig_dt = pd.to_datetime(rig[0])
+            if onstream and onstream[0]:
+                end_total_dt = pd.to_datetime(onstream[0])
             else:
-                total_days = (pd.Timestamp.today().normalize() - rig_out_dt).days
+                end_total_dt = pd.to_datetime(date.today())
+            total_days = max((end_total_dt - rig_dt).days, 1)
         else:
             total_days = None
 
-        # --- Total days on current process ---
-        total_days_of_current_process = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
+        # Total days on current process
+        total_days_current = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # --- Pull KPI days for this process from your legacy KPI data ---
-        # Assume you have a dict `kpi_dict = {'Process Name': KPI_days, ...}`
-        kpi_days = kpi_dict.get(process_name, 120)  # fallback to 120 if not found
+        # KPI for current process (pull from your KPI dataset; here we use 120 if not available)
+        process_kpi = 120
 
-        # --- Percentage vs process KPI ---
-        percent_kpi = round((total_days_of_current_process / kpi_days) * 100, 1) if total_days_of_current_process is not None else None
+        # Percentage vs KPI of current process
+        percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None else None
 
-        # --- Remaining days against process KPI ---
-        remaining_days = kpi_days - total_days_of_current_process if total_days_of_current_process is not None else None
+        # Remaining days against KPI of current process
+        remaining_days = process_kpi - total_days_current if total_days_current is not None else None
 
-        # --- Month of Onstream ---
-        month_onstream = pd.to_datetime(on_stream[0]).strftime('%B') if on_stream and on_stream[0] else None
+        # Month of Onstream
+        month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
-        # --- Row color (traffic lights) ---
+        # Completion color (traffic lights)
         if total_days is not None:
             if total_days <= 90:
                 row_color = '#32CD32'  # Green
@@ -398,7 +397,7 @@ for well in wells:
         else:
             row_color = '#D3D3D3'  # Grey if missing
 
-        # --- Gap / Status ---
+        # Gap / Status text
         if remaining_days is not None:
             if remaining_days < 0:
                 gap_text = f"Over target by {abs(remaining_days)} days"
@@ -413,7 +412,7 @@ for well in wells:
             "Well": well,
             "Current Process": process_name,
             "Total days on Well": total_days,
-            "Total days on Current Process": total_days_of_current_process,
+            "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
             "Remaining Days": remaining_days,
             "Month of Onstream": month_onstream,
@@ -435,9 +434,9 @@ for well in wells:
 
 progress_df = pd.DataFrame(progress_data)
 
-# --- Highlight function for Remaining Days ---
+# Highlight function for Remaining Days cell
 def highlight_remaining(val):
-    if isinstance(val, (int, float)):
+    if isinstance(val,(int,float)):
         if val <= 0:
             return 'background-color: red; color:white'
         elif val <= 60:
@@ -446,7 +445,7 @@ def highlight_remaining(val):
             return 'background-color: green'
     return ''
 
-# --- Display Table in Column 2 ---
+# Display table with traffic light coloring
 col2.header("Well Progress Dashboard")
 col2.markdown("""
 **Legend:**  
@@ -455,45 +454,40 @@ col2.markdown("""
 """)
 
 if not progress_df.empty:
-    styled_df = (
-        progress_df.drop(columns=["Row Color"])
-        .style
-        .apply(lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1)
-        .applymap(highlight_remaining, subset=['Remaining Days'])
-    )
+    styled_df = progress_df.drop(columns=["Row Color"]).style.apply(
+        lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1
+    ).applymap(highlight_remaining, subset=['Remaining Days'])
     col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No progress data available.")
-#-------------------------- to check--------------------------------
-import plotly.graph_objects as go
 
-# --- Filter wells that are On Stream ---
+# ------------------- Monthly Summary Chart under Table -------------------
 onstream_df = progress_df[progress_df['Month of Onstream'].notnull() & progress_df['Total days on Well'].notnull()]
 
-# --- If no wells on stream, handle gracefully ---
 if not onstream_df.empty:
-    # --- Group by Month and calculate metrics ---
+    # Order months
     month_order = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
+    
     # Average On Stream days per month
     avg_days_per_month = onstream_df.groupby('Month of Onstream')['Total days on Well'].mean().reindex(month_order).fillna(0)
-
-    # Compliance per well: 100% if completed <= KPI days, 0% if exceeded
-    onstream_df['Compliance'] = onstream_df.apply(lambda x: 100 if x['Total days on Well'] <= 120 else 0, axis=1)
-    # Average compliance per month
+    
+    # Compliance: 100% if <= KPI (120 days), 0% if > KPI
+    onstream_df['Compliance'] = onstream_df['Total days on Well'].apply(lambda x: 100 if x <= 120 else 0)
     avg_compliance_per_month = onstream_df.groupby('Month of Onstream')['Compliance'].mean().reindex(month_order).fillna(100)
-
-    # --- Overall summary ---
+    
+    # Overall averages
     overall_avg_compliance = avg_compliance_per_month.mean()
     overall_avg_days = onstream_df['Total days on Well'].mean()
-
-    # --- Display summary text ---
+    
+    # Display summary text
     col2.markdown(f"**Average compliance of all On Stream wells:** {overall_avg_compliance:.1f}%")
     col2.markdown(f"**Average number of On Stream days of all On Stream wells:** {overall_avg_days:.1f} days")
-
-    # --- Create dual-axis chart ---
+    
+    # Plot dual-axis chart
+    import plotly.graph_objects as go
     fig_summary = go.Figure()
     fig_summary.add_trace(go.Bar(
         x=month_order,
@@ -510,8 +504,7 @@ if not onstream_df.empty:
         mode='lines+markers',
         marker_color='darkgreen'
     ))
-
-    # Layout with dual y-axis
+    
     fig_summary.update_layout(
         title="Monthly Average On Stream Days and Compliance",
         xaxis_title="Month",
@@ -519,12 +512,11 @@ if not onstream_df.empty:
         yaxis2=dict(title="Average Compliance %", side='right', overlaying='y', range=[0, 110]),
         legend=dict(x=0.01, y=0.99)
     )
-
-    # Show chart under table
+    
     col2.plotly_chart(fig_summary, use_container_width=True)
-
 else:
     col2.write("No wells are on stream to calculate monthly summary.")
+
 
 
 # ---------------------- Column 3: Gap Analysis ----------------------
