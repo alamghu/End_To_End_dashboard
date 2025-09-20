@@ -365,19 +365,18 @@ for well in wells:
         c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
         onstream = c.fetchone()
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
-
-       # Completion color and gap (traffic light system)
+# --- Completion color (traffic light) and gap ---
 if total_days is not None:
     if total_days <= 90:
-        row_color = '#32CD32'   # Green
+        row_color = '#32CD32'   # Green (well ahead of schedule)
     elif total_days <= 120:
-        row_color = '#FFD700'   # Yellow
+        row_color = '#FFD700'   # Yellow (within target, caution)
     else:
-        row_color = '#FF6347'   # Red
+        row_color = '#FF6347'   # Red (over target, delayed)
 else:
     row_color = '#D3D3D3'       # Grey (missing data)
 
-# Gap text
+# Gap text logic
 if remaining_days is not None:
     if remaining_days < 0:
         gap_text = f"Over target by {abs(remaining_days)} days"
@@ -388,6 +387,7 @@ if remaining_days is not None:
 else:
     gap_text = "Missing data"
 
+# Append row to progress_data
 progress_data.append({
     "Well": well,
     "Total Days": total_days,
@@ -396,6 +396,7 @@ progress_data.append({
     "Gap": gap_text
 })
 
+      
     else:
         progress_data.append({
             "Well": well,
