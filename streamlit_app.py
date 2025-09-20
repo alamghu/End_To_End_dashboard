@@ -454,21 +454,21 @@ col2.markdown("""
 """)
 
 if not progress_df.empty:
-   styled_df = (
-    df.style
-    .applymap(
-        lambda x: (
-            "background-color: lightgreen; font-weight: bold"
-            if isinstance(x, (int, float)) and x >= 0
-            else "background-color: salmon; font-weight: bold"
-        ),
-        subset=[col for col in ["Completion Progress Days"] if col in df.columns]  
+    styled_df = (
+        df.style
+        .applymap(
+            lambda x: (
+                "background-color: lightgreen; font-weight: bold"
+                if isinstance(x, (int, float)) and x >= 0
+                else "background-color: salmon; font-weight: bold"
+            ),
+            subset=[col for col in ["Completion Progress Days"] if col in df.columns]
+        )
     )
-)
-col2.dataframe(styled_df, use_container_width=True)
-
+    col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No data available.")
+
 #-----------------------------------------------------------------------------------------------------------
 
 # Column 3: Gap Analysis
