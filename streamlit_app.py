@@ -351,16 +351,19 @@ for well in wells:
         process_name, start, end = proc
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
-
+        
+        # Total days
+        total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
+        
         # Total days on current process (if both start and end exist)
-        total_days = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
-
-        # Percentage vs Process KPI ((of current process)) — here you used 120 as reference previously.
-        percent_kpi = round((total_days / 120) * 100, 1) if total_days is not None else None
+        total_days_on_current_process = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
         # Remaining days against KPI (of current process)
-        remaining_days = 120 - total_days if total_days is not None else None
-
+        remaining_days_of_current_process = max(kpi_value - elapsed_days, 0) if kpi_value > 0 else 0
+        
+        # Percentage vs Process KPI ((of current process)) — KPI of each process as donat chart #1
+        percent_kpi_of_current_process = round((remaining_days / kpi_value_calc) * 100, 1) if kpi_value_calc > 0 else 0
+       
         # Month of Onstream
         c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
         onstream = c.fetchone()
@@ -390,10 +393,11 @@ for well in wells:
             
         progress_data.append({
             "Well": well,
+            "Total days on since Rig Out": total_days,
             "Current Process": process_name,
-            "Total days on Current Process": total_days,
-            "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
-            "Remaining Days": remaining_days,
+            "Total days of Ongoing Process": total_days_on_current_process,
+            "Percentage vs KPI of Current Process": f"{percent_kpi_of_current_process}%" if percent_kpi_of_current_process is not None else None,
+            "Remaining Days of Ongoing Process ": remaining_days_of_current_process,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -401,10 +405,11 @@ for well in wells:
     else:
         progress_data.append({
             "Well": well,
+            "Total days on since Rig Out": None,
             "Current Process": None,
-            "Total days on Current Process": None,
+            "Total days of Ongoing Process": None,
             "Percentage vs KPI of Current Process": None,
-            "Remaining Days": None,
+            "Remaining Days of Ongoing Process ": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
@@ -436,7 +441,7 @@ if not progress_df.empty:
     ).applymap(highlight_remaining, subset=['Remaining Days'])
     col2.dataframe(styled_df, use_container_width=True)
 else:
-    col2.write("No progress data available.")
+    col2.write("No data available.")
 #-----------------------------------------------------------------------------------------------------------
 
 # Column 3: Gap Analysis
