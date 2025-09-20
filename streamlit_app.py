@@ -371,8 +371,17 @@ for well in wells:
         # Remaining days against KPI (dummy calc until you tie in exact kpi_value/elapsed_days vars)
         remaining_days_of_current_process = max(kpi_value - elapsed_days, 0) if 'kpi_value' in locals() and 'elapsed_days' in locals() else None
 
-        # Percentage vs KPI of current process (dummy calc)
-        percent_kpi_of_current_process = round((remaining_days_of_current_process / kpi_value) * 100, 1) if 'kpi_value' in locals() and kpi_value > 0 else None
+        # Assume KPI = 120 days unless process-specific KPI exists
+        default_kpi = 120
+
+        # Percentage vs KPI of current process
+        if total_days_on_current_process is not None:
+            percent_kpi_of_current_process = round((total_days_on_current_process / default_kpi) * 100, 1)
+            remaining_days_of_current_process = default_kpi - total_days_on_current_process
+        else:
+            percent_kpi_of_current_process = None
+            remaining_days_of_current_process = None
+
 
         # Month of Onstream
         month_onstream = pd.to_datetime(ons[0]).strftime('%B') if ons and ons[0] else None
