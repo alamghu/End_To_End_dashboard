@@ -411,7 +411,6 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": process_name,
-            "KPI (days)": process_kpi,
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
@@ -424,7 +423,6 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": None,
-            "KPI (days)": None,
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
