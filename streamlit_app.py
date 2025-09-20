@@ -414,7 +414,7 @@ for well in wells:
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
-            "Remaining Days": remaining_days,
+            " Current Process Remaining Days Remaining Days": remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -426,7 +426,7 @@ for well in wells:
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
-            "Remaining Days": None,
+            " Current Process Remaining Days": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
@@ -434,7 +434,7 @@ for well in wells:
 
 progress_df = pd.DataFrame(progress_data)
 
-# Highlight function for Remaining Days cell
+# Highlight function for Current Process Remaining Days cell
 def highlight_remaining(val):
     if isinstance(val,(int,float)):
         if val <= 0:
@@ -450,13 +450,13 @@ col2.header("Well Progress Dashboard")
 col2.markdown("""
 **Legend:**  
 - **Row Color:** green = within KPI, yellow = near KPI, red = exceeded KPI  
-- **Remaining Days Cell:** green > 60, orange 0–60, red ≤ 0
+- ** Current Process Remaining Days Cell:** green > 60, orange 0–60, red ≤ 0
 """)
 
 if not progress_df.empty:
     styled_df = progress_df.drop(columns=["Row Color"]).style.apply(
         lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1
-    ).applymap(highlight_remaining, subset=['Remaining Days'])
+    ).applymap(highlight_remaining, subset=[' Current Process Remaining Days'])
     col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No progress data available.")
