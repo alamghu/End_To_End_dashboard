@@ -366,11 +366,7 @@ for well in wells:
         onstream = c.fetchone()
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
-        # Completion color and gap
-        #row_color = '#32CD32' if total_days is not None and total_days <= 120 else '#FF6347'
-        #gap_text = f"{'Over' if (remaining_days is not None and remaining_days < 0) else 'Under'} target by {abs(remaining_days)} days" if remaining_days is not None else "Missing data"
-
-        # Completion color (traffic light)
+        # Completion color 
         if total_days is not None:
             if total_days <= 90:
                 row_color = '#32CD32'  # Green
