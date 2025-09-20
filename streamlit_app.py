@@ -342,6 +342,24 @@ else:
 
 # ------------------- Column 2: Well Progress Dashboard -------------------
 
+# ------------------- Column 2: Well Progress Dashboard -------------------
+
+# KPI process (kept your original KPI dictionary)
+kpi_dict = {
+    "Rig Release": 4,
+    "WLCTF_ UWO ➔ GGO": 15,
+    "Standalone Activity": 5,
+    "On Plot Hookup": 35,
+    "Pre-commissioning": 7,
+    "Unhook": 8,
+    "WLCTF_GGO ➔ UWIF": 0,
+    "Waiting IFS Resources": 14,
+    "Frac Execution": 26,
+    "Re-Hook & commissioning": 8,
+    "Plug Removal": 1,
+    "On stream": 1
+}
+
 progress_data = []
 
 for well in wells:
@@ -374,11 +392,11 @@ for well in wells:
         # Total days on current process
         total_days_current = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # KPI for current process (pull from your KPI dataset; here we use 120 if not available)
-        process_kpi = 120
+        # ✅ Get KPI for current process from dictionary (default = 120 if not found)
+        process_kpi = kpi_dict.get(process_name, 120)
 
         # Percentage vs KPI of current process
-        percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None else None
+        percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None and process_kpi > 0 else None
 
         # Remaining days against KPI of current process
         remaining_days = process_kpi - total_days_current if total_days_current is not None else None
@@ -386,7 +404,7 @@ for well in wells:
         # Month of Onstream
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
-        # Completion color (traffic lights)
+        # Completion color (traffic lights based on total days of the whole well cycle)
         if total_days is not None:
             if total_days <= 90:
                 row_color = '#32CD32'  # Green
@@ -411,6 +429,7 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": process_name,
+            "KPI (days)": process_kpi,
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
@@ -423,6 +442,7 @@ for well in wells:
         progress_data.append({
             "Well": well,
             "Current Process": None,
+            "KPI (days)": None,
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
@@ -460,6 +480,7 @@ if not progress_df.empty:
     col2.dataframe(styled_df, use_container_width=True)
 else:
     col2.write("No progress data available.")
+
 
 # ------------------- Monthly Summary Chart under Table -------------------
 onstream_df = progress_df[progress_df['Month of Onstream'].notnull() & progress_df['Total days on Well'].notnull()]
