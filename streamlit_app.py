@@ -367,28 +367,27 @@ for well in wells:
         month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
         # Completion color and gap
-        # Completion color and gap (traffic-light style)
-if total_days is None:
-    row_color = '#FF6347'  # Red if missing data
-elif total_days <= 100:
-    row_color = '#32CD32'  # Green (comfortably within KPI)
-elif total_days <= 120:
-    row_color = '#FFD700'  # Yellow (close to KPI limit)
-else:
-    row_color = '#FF6347'  # Red (exceeded KPI)
-
-if remaining_days is not None:
-    if remaining_days < 0:
-        gap_text = f"Over target by {abs(remaining_days)} days"
-    elif remaining_days <= 20:
-        gap_text = f"Close to limit: {remaining_days} days remaining"
-    else:
-        gap_text = f"Under target by {remaining_days} days"
-else:
-    gap_text = "Missing data"
-
         #row_color = '#32CD32' if total_days is not None and total_days <= 120 else '#FF6347'
         #gap_text = f"{'Over' if (remaining_days is not None and remaining_days < 0) else 'Under'} target by {abs(remaining_days)} days" if remaining_days is not None else "Missing data"
+        # Completion color and gap (traffic-light style)
+    if total_days is None:
+        row_color = '#FF6347'  # Red if missing data
+    elif total_days <= 100:
+        row_color = '#32CD32'  # Green (comfortably within KPI)
+    elif total_days <= 120:
+        row_color = '#FFD700'  # Yellow (close to KPI limit)
+    else:
+        row_color = '#FF6347'  # Red (exceeded KPI)
+
+    if remaining_days is not None:
+        if remaining_days < 0:
+            gap_text = f"Over target by {abs(remaining_days)} days"
+        elif remaining_days <= 20:
+            gap_text = f"Close to limit: {remaining_days} days remaining"
+        else:
+            gap_text = f"Under target by {remaining_days} days"
+    else:
+        gap_text = "Missing data"
 
         progress_data.append({
             "Well": well,
