@@ -414,7 +414,7 @@ for well in wells:
             "Total days on Well": total_days,
             "Total days on Current Process": total_days_current,
             "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
-            " Current Process Remaining Days Remaining Days": remaining_days,
+            "Current Process Remaining Days": remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -426,7 +426,7 @@ for well in wells:
             "Total days on Well": None,
             "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
-            " Current Process Remaining Days": None,
+            "Current Process Remaining Days": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
