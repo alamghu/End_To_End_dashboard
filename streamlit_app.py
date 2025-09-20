@@ -340,53 +340,34 @@ if not chart_df.empty:
 else:
     col2.write("No chart data available. Add start/end dates for processes to see KPI comparison.")
 
-# Prepare data for Column 2 table
+
+# ---------------------- Column 2: Well Progress Dashboard Table ----------------------
 progress_data = []
 
 for well in wells:
     # Get current process (latest process with end_date)
     c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
     proc = c.fetchone()
-
-    # Get Rig Release and On stream dates
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
-    rig = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-    ons = c.fetchone()
-
     if proc:
         process_name, start, end = proc
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
 
-        # Total days since Rig Release to On stream
-        if rig and rig[0] and ons and ons[0]:
-            total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
-        else:
-            total_days = None
-
         # Total days on current process (if both start and end exist)
-        total_days_on_current_process = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
+        total_days = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # Remaining days against KPI (dummy calc until you tie in exact kpi_value/elapsed_days vars)
-        remaining_days_of_current_process = max(kpi_value - elapsed_days, 0) if 'kpi_value' in locals() and 'elapsed_days' in locals() else None
+        # Percentage vs Process KPI (using 120-day reference)
+        percent_kpi = round((total_days / 120) * 100, 1) if total_days is not None else None
 
-        # Assume KPI = 120 days unless process-specific KPI exists
-        default_kpi = 120
-
-        # Percentage vs KPI of current process
-        if total_days_on_current_process is not None:
-            percent_kpi_of_current_process = round((total_days_on_current_process / default_kpi) * 100, 1)
-            remaining_days_of_current_process = default_kpi - total_days_on_current_process
-        else:
-            percent_kpi_of_current_process = None
-            remaining_days_of_current_process = None
-
+        # Remaining days against KPI
+        remaining_days = 120 - total_days if total_days is not None else None
 
         # Month of Onstream
-        month_onstream = pd.to_datetime(ons[0]).strftime('%B') if ons and ons[0] else None
+        c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+        onstream = c.fetchone()
+        month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
 
-        # Completion color 
+        # Row color for traffic lights
         if total_days is not None:
             if total_days <= 90:
                 row_color = '#32CD32'  # Green
@@ -397,25 +378,23 @@ for well in wells:
         else:
             row_color = '#D3D3D3'  # Grey if missing
 
-        # Gap / Status
-        if total_days is not None:
-            gap = total_days - 120
-            if gap > 0:
-                gap_text = f"Over target by {gap} days"
-            elif gap == 0:
+        # Gap / Status text
+        if remaining_days is not None:
+            if remaining_days < 0:
+                gap_text = f"Over target by {abs(remaining_days)} days"
+            elif remaining_days == 0:
                 gap_text = "On target"
             else:
-                gap_text = f"Under target by {abs(gap)} days"
+                gap_text = f"Under target by {remaining_days} days"
         else:
             gap_text = "Missing data"
-            
+
         progress_data.append({
             "Well": well,
-            "Total days since Rig Release": total_days,
             "Current Process": process_name,
-            "Total days of Ongoing Process": total_days_on_current_process,
-            "Percentage vs KPI of Current Process": f"{percent_kpi_of_current_process}%" if percent_kpi_of_current_process is not None else None,
-            "Remaining Days of Ongoing Process": remaining_days_of_current_process,
+            "Total days on Current Process": total_days,
+            "Percentage vs KPI of Current Process": f"{percent_kpi}%" if percent_kpi is not None else None,
+            "Remaining Days": remaining_days,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -423,11 +402,10 @@ for well in wells:
     else:
         progress_data.append({
             "Well": well,
-            "Total days since Rig Release": None,
             "Current Process": None,
-            "Total days of Ongoing Process": None,
+            "Total days on Current Process": None,
             "Percentage vs KPI of Current Process": None,
-            "Remaining Days of Ongoing Process": None,
+            "Remaining Days": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
@@ -435,7 +413,7 @@ for well in wells:
 
 progress_df = pd.DataFrame(progress_data)
 
-# Highlight function for Remaining Days cell
+# Highlight function for Remaining Days column
 def highlight_remaining(val):
     if isinstance(val,(int,float)):
         if val <= 0:
@@ -446,6 +424,7 @@ def highlight_remaining(val):
             return 'background-color: green'
     return ''
 
+# Display table in Column 2
 col2.header("Well Progress Dashboard")
 col2.markdown("""
 **Legend:**  
@@ -455,25 +434,17 @@ col2.markdown("""
 
 if not progress_df.empty:
     styled_df = (
-        df.style
-        .applymap(
-            lambda x: (
-                "background-color: lightgreen; font-weight: bold"
-                if isinstance(x, (int, float)) and x >= 0
-                else "background-color: salmon; font-weight: bold"
-            ),
-            subset=[col for col in ["Completion Progress Days"] if col in df.columns]
-        )
+        progress_df.drop(columns=["Row Color"])
+        .style
+        .apply(lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1)
+        .applymap(highlight_remaining, subset=['Remaining Days'])
     )
     col2.dataframe(styled_df, use_container_width=True)
 else:
-    col2.write("No data available.")
+    col2.write("No progress data available.")
 
-#-----------------------------------------------------------------------------------------------------------
-
-# Column 3: Gap Analysis
+# ---------------------- Column 3: Gap Analysis ----------------------
 col3.header("Gap Analysis")
-
 gap_analysis = []
 
 for well in wells:
@@ -490,6 +461,6 @@ for well in wells:
     else:
         gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-# Display gap analysis
+# Display gap analysis in Column 3
 for gap in gap_analysis:
     col3.write(gap)
