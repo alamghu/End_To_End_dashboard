@@ -374,8 +374,8 @@ for well in wells:
         # Total days on current process
         total_days_current = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # KPI for current process (pull from your KPI dataset; here we use 120 if not available)
-        process_kpi = 120
+        # KPI for current process (Get KPI for current process from dictionary (default = 120 if not found)
+        process_kpi = kpi_dict.get(process_name, 120)
 
         # Percentage vs KPI of current process
         percent_kpi = round((total_days_current / process_kpi) * 100, 1) if total_days_current is not None else None
