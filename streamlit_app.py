@@ -443,15 +443,11 @@ else:
 col3.header("Gap Analysis")
 gap_analysis = []
 
-# Column 3: Completion Percentage and Gap Analysis
-col3.header("Progress Overview & Gap Analysis")
-progress_data_col3 = []
+# Column 3: Gap Analysis
+col3.header("Gap Analysis")
 gap_analysis = []
 
 for well in wells:
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
-    rig = c.fetchone()
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
     ons = c.fetchone()
     if rig and rig[0] and ons and ons[0]:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
@@ -476,6 +472,6 @@ if not progress_df_col3.empty:
 else:
     col3.write("No completion data available.")
 
-col3.write("### Gap Analysis")
+
 for gap in gap_analysis:
     col3.write(gap)
