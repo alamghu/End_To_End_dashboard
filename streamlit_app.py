@@ -347,27 +347,35 @@ for well in wells:
     # Get current process (latest process with end_date)
     c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
     proc = c.fetchone()
+
+    # Get Rig Release and On stream dates
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    rig = c.fetchone()
+    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
+    ons = c.fetchone()
+
     if proc:
         process_name, start, end = proc
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
-        
-        # Total days
-        total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
-        
+
+        # Total days since Rig Release to On stream
+        if rig and rig[0] and ons and ons[0]:
+            total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
+        else:
+            total_days = None
+
         # Total days on current process (if both start and end exist)
         total_days_on_current_process = (end_dt - start_dt).days if start_dt is not None and end_dt is not None else None
 
-        # Remaining days against KPI (of current process)
-        remaining_days_of_current_process = max(kpi_value - elapsed_days, 0) if kpi_value > 0 else 0
-        
-        # Percentage vs Process KPI ((of current process)) — KPI of each process as donat chart #1
-        percent_kpi_of_current_process = round((remaining_days / kpi_value_calc) * 100, 1) if kpi_value_calc > 0 else 0
-       
+        # Remaining days against KPI (dummy calc until you tie in exact kpi_value/elapsed_days vars)
+        remaining_days_of_current_process = max(kpi_value - elapsed_days, 0) if 'kpi_value' in locals() and 'elapsed_days' in locals() else None
+
+        # Percentage vs KPI of current process (dummy calc)
+        percent_kpi_of_current_process = round((remaining_days_of_current_process / kpi_value) * 100, 1) if 'kpi_value' in locals() and kpi_value > 0 else None
+
         # Month of Onstream
-        c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-        onstream = c.fetchone()
-        month_onstream = pd.to_datetime(onstream[0]).strftime('%B') if onstream and onstream[0] else None
+        month_onstream = pd.to_datetime(ons[0]).strftime('%B') if ons and ons[0] else None
 
         # Completion color 
         if total_days is not None:
@@ -381,23 +389,24 @@ for well in wells:
             row_color = '#D3D3D3'  # Grey if missing
 
         # Gap / Status
-        if remaining_days is not None:
-            if remaining_days < 0:
-                gap_text = f"Over target by {abs(remaining_days)} days"
-            elif remaining_days == 0:
+        if total_days is not None:
+            gap = total_days - 120
+            if gap > 0:
+                gap_text = f"Over target by {gap} days"
+            elif gap == 0:
                 gap_text = "On target"
             else:
-                gap_text = f"Under target by {remaining_days} days"
+                gap_text = f"Under target by {abs(gap)} days"
         else:
             gap_text = "Missing data"
             
         progress_data.append({
             "Well": well,
-            "Total days on since Rig Out": total_days,
+            "Total days since Rig Release": total_days,
             "Current Process": process_name,
             "Total days of Ongoing Process": total_days_on_current_process,
             "Percentage vs KPI of Current Process": f"{percent_kpi_of_current_process}%" if percent_kpi_of_current_process is not None else None,
-            "Remaining Days of Ongoing Process ": remaining_days_of_current_process,
+            "Remaining Days of Ongoing Process": remaining_days_of_current_process,
             "Month of Onstream": month_onstream,
             "Row Color": row_color,
             "Gap/Status": gap_text
@@ -405,11 +414,11 @@ for well in wells:
     else:
         progress_data.append({
             "Well": well,
-            "Total days on since Rig Out": None,
+            "Total days since Rig Release": None,
             "Current Process": None,
             "Total days of Ongoing Process": None,
             "Percentage vs KPI of Current Process": None,
-            "Remaining Days of Ongoing Process ": None,
+            "Remaining Days of Ongoing Process": None,
             "Month of Onstream": None,
             "Row Color": None,
             "Gap/Status": "Missing data"
