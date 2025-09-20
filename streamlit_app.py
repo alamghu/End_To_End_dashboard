@@ -454,10 +454,19 @@ col2.markdown("""
 """)
 
 if not progress_df.empty:
-    styled_df = progress_df.drop(columns=["Row Color"]).style.apply(
-        lambda x: [f'background-color: {progress_df.loc[x.name, "Row Color"]}' for _ in x], axis=1
-    ).applymap(highlight_remaining, subset=['Remaining Days'])
-    col2.dataframe(styled_df, use_container_width=True)
+   styled_df = (
+    df.style
+    .applymap(
+        lambda x: (
+            "background-color: lightgreen; font-weight: bold"
+            if isinstance(x, (int, float)) and x >= 0
+            else "background-color: salmon; font-weight: bold"
+        ),
+        subset=[col for col in ["Completion Progress Days"] if col in df.columns]  
+    )
+)
+col2.dataframe(styled_df, use_container_width=True)
+
 else:
     col2.write("No data available.")
 #-----------------------------------------------------------------------------------------------------------
