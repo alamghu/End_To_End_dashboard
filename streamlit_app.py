@@ -441,37 +441,23 @@ else:
 
 # Column 3: Gap Analysis
 col3.header("Gap Analysis")
-gap_analysis = []
 
-# Column 3: Gap Analysis
-col3.header("Gap Analysis")
 gap_analysis = []
 
 for well in wells:
+    # Get Rig Release and On stream dates
+    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
+    rig = c.fetchone()
+    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
     ons = c.fetchone()
+
     if rig and rig[0] and ons and ons[0]:
         total_days = max((pd.to_datetime(ons[0]) - pd.to_datetime(rig[0])).days, 1)
-        progress = round((total_days / 120) * 100, 1)
-        color = '#32CD32' if total_days <= 120 else '#FF6347'
-        progress_data_col3.append({"Well": well, "Total Days": total_days, "Completion Percentage": f"{progress}%", "Color": color})
         gap = total_days - 120
         gap_analysis.append(f"{well}: {'Over' if gap > 0 else 'Under'} target by {abs(gap)} days")
     else:
-        progress_data_col3.append({"Well": well, "Total Days": None, "Completion Percentage": None, "Color": None})
         gap_analysis.append(f"{well}: Missing Rig Release or On stream dates")
 
-progress_df_col3 = pd.DataFrame(progress_data_col3)
-
-if not progress_df_col3.empty:
-    def color_cells(val, color):
-        return f'background-color: {color}' if color else ''
-
-    styled_df_col3 = progress_df_col3.drop(columns=["Color"]).style.apply(
-        lambda x: [color_cells(v, progress_df_col3.loc[x.name, "Color"]) for v in x], axis=1)
-    col3.dataframe(styled_df_col3, use_container_width=True)
-else:
-    col3.write("No completion data available.")
-
-
+# Display gap analysis
 for gap in gap_analysis:
     col3.write(gap)
