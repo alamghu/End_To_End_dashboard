@@ -4,18 +4,16 @@ import sqlite3
 from datetime import date, datetime
 import plotly.express as px
 import plotly.graph_objects as go
-import calendar
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="End To End Tracking Dashboard",
     page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # ---------------- DATABASE ----------------
-DB_PATH = 'tracking_data.db'
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+conn = sqlite3.connect("tracking_data.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS process_data (
@@ -37,21 +35,17 @@ conn.commit()
 USERS = {
     "user1": "MU64275",
     "user2": "entry",
-    "user3": "entry",
-    "viewer1": "view",
-    "viewer2": "view",
-    "viewer3": "view"
+    "user3": "entry"
 }
 
 username = st.sidebar.text_input("Username")
 if username not in USERS:
-    st.sidebar.error("User not recognized")
     st.stop()
 
 role = USERS[username]
 
-# ---------------- WELLS ----------------
-wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
+# ---------------- DATA ----------------
+wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115"]
 
 processes = [
     "Rig Release","WLCTF_ UWO ➔ GGO","Standalone Activity",
@@ -77,10 +71,10 @@ kpi_dict = {
 }
 
 # ---------------- WELL SELECTION ----------------
-st.sidebar.header("Well Selection and Data Entry")
-selected_well = st.sidebar.selectbox("Select a Well", wells)
+st.sidebar.header("Well Selection")
+selected_well = st.sidebar.selectbox("Select Well", wells)
 
-# 🔥 RESET SESSION STATE WHEN WELL CHANGES
+# ---------------- RESET ON WELL CHANGE ----------------
 if "last_well" not in st.session_state:
     st.session_state["last_well"] = selected_well
 
@@ -88,50 +82,54 @@ if st.session_state["last_well"] != selected_well:
     for key in list(st.session_state.keys()):
         if key.startswith("start_") or key.startswith("end_"):
             st.session_state[key] = None
-
-st.session_state["last_well"] = selected_well
+    st.session_state["last_well"] = selected_well
 
 # ---------------- WORKFLOW ----------------
-c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
-saved_workflow = c.fetchone()
-default_workflow = saved_workflow[0] if saved_workflow else "HBF"
+workflow = st.sidebar.selectbox("Workflow", ["HBF", "HAF"])
 
-selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
-st.session_state["workflow_type"] = selected_workflow
+# ---------------- SIDEBAR DATA ENTRY ----------------
+st.sidebar.markdown("## Process Input")
 
-if saved_workflow is None or selected_workflow != saved_workflow[0]:
-    c.execute('REPLACE INTO workflow_type (well, workflow) VALUES (?, ?)', (selected_well, selected_workflow))
-    conn.commit()
+save_clicked = False
 
-# ---------------- RESTORE DATA ----------------
-if st.session_state["last_well"] == selected_well:
-    for process in processes:
-        key_start = f"start_{process}"
-        key_end = f"end_{process}"
+for process in processes:
+    st.sidebar.markdown(f"**{process}**")
 
-        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
-        result = c.fetchone()
+    start = st.sidebar.date_input(f"Start {process}", key=f"start_{process}")
+    end = st.sidebar.date_input(f"End {process}", key=f"end_{process}")
 
-        st.session_state[key_start] = pd.to_datetime(result[0]).date() if result and result[0] else None
-        st.session_state[key_end] = pd.to_datetime(result[1]).date() if result and result[1] else None
+    # SAVE BUTTON (NEW SAFE CONTROL)
+    if st.sidebar.button(f"Save {process}", key=f"save_{process}"):
+        if start and end:
+            c.execute(
+                "REPLACE INTO process_data VALUES (?,?,?,?)",
+                (selected_well, process, start.isoformat(), end.isoformat())
+            )
+            conn.commit()
+            save_clicked = True
 
-# ---------------- LAYOUT ----------------
-col1, col2, col3 = st.columns((1.5, 8.0, 1.0), gap='medium')
+    # LEGACY AUTO-SAVE (kept for compatibility)
+    if start and end:
+        c.execute(
+            "REPLACE INTO process_data VALUES (?,?,?,?)",
+            (selected_well, process, start.isoformat(), end.isoformat())
+        )
+        conn.commit()
 
-# ---------------- DATA BUILD ----------------
+# ---------------- LOAD DATA ----------------
 chart_data = []
 progress_data = []
 
 for well in wells:
     for process in processes:
         c.execute(
-            'SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?',
+            "SELECT start_date, end_date FROM process_data WHERE well=? AND process=?",
             (well, process)
         )
-        result = c.fetchone()
+        r = c.fetchone()
 
-        if result and result[0] and result[1]:
-            duration = max((pd.to_datetime(result[1]) - pd.to_datetime(result[0])).days, 0)
+        if r and r[0] and r[1]:
+            duration = (pd.to_datetime(r[1]) - pd.to_datetime(r[0])).days
 
             chart_data.append({
                 "Well": well,
@@ -140,133 +138,82 @@ for well in wells:
                 "KPI": kpi_dict.get(process, 0)
             })
 
-    # progress
-    c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
-    proc = c.fetchone()
+    # ---------------- CURRENT PROCESS ----------------
+    c.execute(
+        "SELECT process, start_date, end_date FROM process_data WHERE well=? ORDER BY end_date DESC LIMIT 1",
+        (well,)
+    )
+    last = c.fetchone()
 
-    c.execute('SELECT start_date FROM process_data WHERE well = ? AND process = ?', (well, 'Rig Release'))
-    rig = c.fetchone()
-
-    c.execute('SELECT end_date FROM process_data WHERE well = ? AND process = ?', (well, 'On stream'))
-    ons = c.fetchone()
-
-    if proc:
-        process_name, start, end = proc
-
+    if last:
+        proc, start, end = last
         start_dt = pd.to_datetime(start) if start else None
         end_dt = pd.to_datetime(end) if end else None
 
-        if rig and rig[0]:
-            rig_dt = pd.to_datetime(rig[0])
-            end_total = pd.to_datetime(ons[0]) if ons and ons[0] else pd.to_datetime(date.today())
-            total_days = (end_total - rig_dt).days
-        else:
-            total_days = None
-
         current_days = (end_dt - start_dt).days if start_dt and end_dt else None
-        kpi = kpi_dict.get(process_name, 120)
-
-        remaining = kpi - current_days if current_days is not None else None
 
         progress_data.append({
             "Well": well,
-            "Current Process": process_name,
-            "Total days on Well": total_days,
-            "Current Process Remaining Days": remaining,
-            "Row Color": "#32CD32"
+            "Current Process": proc,
+            "Current Process Remaining Days": kpi_dict.get(proc, 0) - current_days if current_days else None,
+            "Total days on Well": current_days
         })
 
 progress_df = pd.DataFrame(progress_data)
 chart_df = pd.DataFrame(chart_data)
 
 # ---------------- EXECUTIVE SUMMARY ----------------
-col2.subheader("Executive Summary")
+st.subheader("Executive Summary")
 
 if not progress_df.empty:
-    total_wells = len(progress_df)
-    on_target = progress_df[progress_df["Total days on Well"] <= 120]
-    avg_days = progress_df["Total days on Well"].mean()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Wells", len(progress_df))
+    c2.metric("Avg Cycle", f"{progress_df['Total days on Well'].mean():.1f}")
+    c3.metric("On Target", f"{len(progress_df[progress_df['Total days on Well'] <= 120])}")
 
-    c1, c2, c3 = col2.columns(3)
-    c1.metric("Total Wells", total_wells)
-    c2.metric("% On Target", f"{(len(on_target)/total_wells*100):.1f}%" if total_wells else "0%")
-    c3.metric("Avg Cycle Time", f"{avg_days:.1f} days" if pd.notna(avg_days) else "N/A")
+# ---------------- COLUMN 1 ----------------
+col1, col2, col3 = st.columns([2,6,2])
 
-# ---------------- FIXED STYLING ----------------
-def highlight_remaining(val):
-    try:
-        if pd.notna(val):
-            val = float(val)
-            if val <= 0:
-                return 'background-color:red;color:white'
-            elif val <= 60:
-                return 'background-color:orange'
-            else:
-                return 'background-color:green'
-    except:
-        pass
-    return ''
-
-def highlight_remaining_column(col):
-    if col.name == "Current Process Remaining Days":
-        return col.map(highlight_remaining)
-    return [''] * len(col)
-
-if "Current Process Remaining Days" not in progress_df.columns:
-    progress_df["Current Process Remaining Days"] = None
-
-styled_df = progress_df.drop(columns=["Row Color"], errors="ignore").style.apply(
-    lambda x: [
-        f'background-color:{progress_df["Row Color"].iloc[x.name]}' if "Row Color" in progress_df.columns else ''
-        for _ in x
-    ],
-    axis=1
-).apply(highlight_remaining_column, axis=0)
-
-col2.dataframe(styled_df, use_container_width=True)
-
-# ---------------- COLUMN 1 FIX ----------------
 col1.subheader(f"Well: {selected_well}")
 
-selected_view = progress_df[progress_df["Well"] == selected_well]
+current = progress_df[progress_df["Well"] == selected_well]
 
-if not selected_view.empty:
-    row = selected_view.iloc[0]
-    col1.write(f"Process: {row['Current Process']}")
-    col1.write(f"Remaining Days: {row['Current Process Remaining Days']}")
-else:
-    col1.write("No data for selected well")
+if not current.empty:
+    r = current.iloc[0]
+    col1.write(f"Process: {r['Current Process']}")
+    col1.write(f"Remaining: {r['Current Process Remaining Days']}")
 
-# ---------------- GANTT FIX (IMPORTANT) ----------------
-col2.subheader("Process Timeline (Gantt View)")
+# ---------------- GANTT (FIXED) ----------------
+col2.subheader("Gantt View")
 
 df_gantt = pd.read_sql(
-    "SELECT * FROM process_data WHERE well = ?",
+    "SELECT * FROM process_data WHERE well=?",
     conn,
     params=(selected_well,)
 )
 
 df_gantt["start_date"] = pd.to_datetime(df_gantt["start_date"], errors="coerce")
 df_gantt["end_date"] = pd.to_datetime(df_gantt["end_date"], errors="coerce")
-df_gantt = df_gantt.dropna(subset=["start_date", "end_date"])
+df_gantt = df_gantt.dropna()
 
 if not df_gantt.empty:
-    fig_gantt = px.timeline(
-        df_gantt,
-        x_start="start_date",
-        x_end="end_date",
-        y="process",
-        color="process"
-    )
-    col2.plotly_chart(fig_gantt, use_container_width=True)
+    fig = px.timeline(df_gantt, x_start="start_date", x_end="end_date", y="process", color="process")
+    col2.plotly_chart(fig, use_container_width=True)
+
+# ---------------- KPI CHART ----------------
+if not chart_df.empty:
+    fig2 = go.Figure()
+
+    for w in chart_df["Well"].unique():
+        d = chart_df[chart_df["Well"] == w]
+        fig2.add_bar(x=d["Process"], y=d["Duration"], name=w)
+
+    col2.plotly_chart(fig2, use_container_width=True)
 
 # ---------------- GAP ANALYSIS ----------------
-col3.header("Gap Analysis")
+col3.subheader("Gap Analysis")
 
-for _, row in progress_df.iterrows():
-    td = row["Total days on Well"]
-    if td:
-        gap = td - 120
-        col3.write(f"{row['Well']}: {'Over' if gap>0 else 'Under'} by {abs(gap)} days")
-    else:
-        col3.write(f"{row['Well']}: Missing data")
+for _, r in progress_df.iterrows():
+    if pd.notna(r["Total days on Well"]):
+        gap = r["Total days on Well"] - 120
+        col3.write(f"{r['Well']}: {'Over' if gap>0 else 'Under'} by {abs(gap)} days")
