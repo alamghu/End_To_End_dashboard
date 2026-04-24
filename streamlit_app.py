@@ -50,22 +50,15 @@ if username not in USERS:
 
 role = USERS[username]
 
-# ---------------- DATA ----------------
+# ---------------- WELLS ----------------
 wells = ["SNN-11", "SN-113", "SN-114", "SNN-10", "SR-603", "SN-115", "BRNW-106", "SNNORTH11_DEV", "SRM-V36A", "SRM-VE127"]
 
 processes = [
-    "Rig Release",
-    "WLCTF_ UWO ➔ GGO",
-    "Standalone Activity",
-    "On Plot Hookup",
-    "Pre-commissioning",
-    "Unhook",
-    "WLCTF_GGO ➔ UWIF",
-    "Waiting IFS Resources",
-    "Frac Execution",
-    "Re-Hook & commissioning",
-    "Plug Removal",
-    "On stream"
+    "Rig Release","WLCTF_ UWO ➔ GGO","Standalone Activity",
+    "On Plot Hookup","Pre-commissioning","Unhook",
+    "WLCTF_GGO ➔ UWIF","Waiting IFS Resources",
+    "Frac Execution","Re-Hook & commissioning",
+    "Plug Removal","On stream"
 ]
 
 kpi_dict = {
@@ -83,31 +76,49 @@ kpi_dict = {
     "On stream": 1
 }
 
-# ---------------- SIDEBAR ----------------
+# ---------------- WELL SELECTION ----------------
 st.sidebar.header("Well Selection and Data Entry")
 selected_well = st.sidebar.selectbox("Select a Well", wells)
 
-if role == "entry":
+# 🔥 RESET SESSION STATE WHEN WELL CHANGES
+if "last_well" not in st.session_state:
+    st.session_state["last_well"] = selected_well
+
+if st.session_state["last_well"] != selected_well:
+    for key in list(st.session_state.keys()):
+        if key.startswith("start_") or key.startswith("end_"):
+            st.session_state[key] = None
+
+st.session_state["last_well"] = selected_well
+
+# ---------------- WORKFLOW ----------------
+c.execute('SELECT workflow FROM workflow_type WHERE well = ?', (selected_well,))
+saved_workflow = c.fetchone()
+default_workflow = saved_workflow[0] if saved_workflow else "HBF"
+
+selected_workflow = st.sidebar.selectbox("Select Workflow", ["HBF", "HAF"], index=["HBF", "HAF"].index(default_workflow))
+st.session_state["workflow_type"] = selected_workflow
+
+if saved_workflow is None or selected_workflow != saved_workflow[0]:
+    c.execute('REPLACE INTO workflow_type (well, workflow) VALUES (?, ?)', (selected_well, selected_workflow))
+    conn.commit()
+
+# ---------------- RESTORE DATA ----------------
+if st.session_state["last_well"] == selected_well:
     for process in processes:
-        st.sidebar.markdown(f"**{process}**")
-        col1, col2 = st.sidebar.columns(2)
+        key_start = f"start_{process}"
+        key_end = f"end_{process}"
 
-        with col1:
-            start_date = st.date_input(f"Start - {process}", key=f"s_{process}")
-        with col2:
-            end_date = st.date_input(f"End - {process}", key=f"e_{process}")
+        c.execute('SELECT start_date, end_date FROM process_data WHERE well = ? AND process = ?', (selected_well, process))
+        result = c.fetchone()
 
-        if start_date and end_date:
-            c.execute(
-                "REPLACE INTO process_data VALUES (?,?,?,?)",
-                (selected_well, process, start_date.isoformat(), end_date.isoformat())
-            )
-            conn.commit()
+        st.session_state[key_start] = pd.to_datetime(result[0]).date() if result and result[0] else None
+        st.session_state[key_end] = pd.to_datetime(result[1]).date() if result and result[1] else None
 
 # ---------------- LAYOUT ----------------
 col1, col2, col3 = st.columns((1.5, 8.0, 1.0), gap='medium')
 
-# ---------------- LOAD DATA ----------------
+# ---------------- DATA BUILD ----------------
 chart_data = []
 progress_data = []
 
@@ -129,7 +140,7 @@ for well in wells:
                 "KPI": kpi_dict.get(process, 0)
             })
 
-    # Progress tracking
+    # progress
     c.execute('SELECT process, start_date, end_date FROM process_data WHERE well = ? ORDER BY end_date DESC LIMIT 1', (well,))
     proc = c.fetchone()
 
@@ -168,19 +179,20 @@ for well in wells:
 progress_df = pd.DataFrame(progress_data)
 chart_df = pd.DataFrame(chart_data)
 
-# ---------------- EXECUTIVE KPI ----------------
+# ---------------- EXECUTIVE SUMMARY ----------------
 col2.subheader("Executive Summary")
 
-total_wells = len(progress_df)
-on_target = progress_df[progress_df["Total days on Well"] <= 120]
-avg_days = progress_df["Total days on Well"].mean()
+if not progress_df.empty:
+    total_wells = len(progress_df)
+    on_target = progress_df[progress_df["Total days on Well"] <= 120]
+    avg_days = progress_df["Total days on Well"].mean()
 
-c1, c2, c3 = col2.columns(3)
-c1.metric("Total Wells", total_wells)
-c2.metric("% On Target", f"{(len(on_target)/total_wells*100):.1f}%" if total_wells else "0%")
-c3.metric("Avg Cycle Time", f"{avg_days:.1f} days" if pd.notna(avg_days) else "N/A")
+    c1, c2, c3 = col2.columns(3)
+    c1.metric("Total Wells", total_wells)
+    c2.metric("% On Target", f"{(len(on_target)/total_wells*100):.1f}%" if total_wells else "0%")
+    c3.metric("Avg Cycle Time", f"{avg_days:.1f} days" if pd.notna(avg_days) else "N/A")
 
-# ---------------- FIXED STYLING (ROOT FIX) ----------------
+# ---------------- FIXED STYLING ----------------
 def highlight_remaining(val):
     try:
         if pd.notna(val):
@@ -200,7 +212,6 @@ def highlight_remaining_column(col):
         return col.map(highlight_remaining)
     return [''] * len(col)
 
-# ensure column exists
 if "Current Process Remaining Days" not in progress_df.columns:
     progress_df["Current Process Remaining Days"] = None
 
@@ -214,40 +225,29 @@ styled_df = progress_df.drop(columns=["Row Color"], errors="ignore").style.apply
 
 col2.dataframe(styled_df, use_container_width=True)
 
-# ---------------- CURRENT PROCESS PANEL ----------------
-col1.subheader("Current Process Status")
+# ---------------- COLUMN 1 FIX ----------------
+col1.subheader(f"Well: {selected_well}")
 
-if not progress_df.empty:
-    latest = progress_df.iloc[0]
-    col1.write(f"Process: {latest['Current Process']}")
-    col1.write(f"Remaining Days: {latest['Current Process Remaining Days']}")
-    col1.progress(0.6)
+selected_view = progress_df[progress_df["Well"] == selected_well]
 
-# ---------------- KPI CHART ----------------
-if not chart_df.empty:
-    fig = go.Figure()
+if not selected_view.empty:
+    row = selected_view.iloc[0]
+    col1.write(f"Process: {row['Current Process']}")
+    col1.write(f"Remaining Days: {row['Current Process Remaining Days']}")
+else:
+    col1.write("No data for selected well")
 
-    for w in chart_df["Well"].unique():
-        d = chart_df[chart_df["Well"] == w]
-        fig.add_bar(x=d["Process"], y=d["Duration"], name=w)
-
-    fig.add_trace(go.Scatter(
-        x=chart_df["Process"].unique(),
-        y=[kpi_dict.get(p, 0) for p in chart_df["Process"].unique()],
-        mode="lines+markers",
-        name="KPI",
-        line=dict(color="red")
-    ))
-
-    col2.plotly_chart(fig, use_container_width=True)
-
-# ---------------- GANTT ----------------
+# ---------------- GANTT FIX (IMPORTANT) ----------------
 col2.subheader("Process Timeline (Gantt View)")
 
-df_gantt = pd.read_sql("SELECT * FROM process_data", conn)
+df_gantt = pd.read_sql(
+    "SELECT * FROM process_data WHERE well = ?",
+    conn,
+    params=(selected_well,)
+)
+
 df_gantt["start_date"] = pd.to_datetime(df_gantt["start_date"], errors="coerce")
 df_gantt["end_date"] = pd.to_datetime(df_gantt["end_date"], errors="coerce")
-
 df_gantt = df_gantt.dropna(subset=["start_date", "end_date"])
 
 if not df_gantt.empty:
