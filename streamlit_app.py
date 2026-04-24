@@ -74,23 +74,21 @@ kpi_dict = {
 st.sidebar.header("Well Selection")
 selected_well = st.sidebar.selectbox("Select Well", wells)
 
-# ---------------- RESET ON WELL CHANGE ----------------
+# ---------------- RESET STATE ON WELL CHANGE ----------------
 if "last_well" not in st.session_state:
     st.session_state["last_well"] = selected_well
 
 if st.session_state["last_well"] != selected_well:
-    for key in list(st.session_state.keys()):
-        if key.startswith("start_") or key.startswith("end_"):
-            st.session_state[key] = None
+    for k in list(st.session_state.keys()):
+        if k.startswith("start_") or k.startswith("end_"):
+            st.session_state[k] = None
     st.session_state["last_well"] = selected_well
 
 # ---------------- WORKFLOW ----------------
 workflow = st.sidebar.selectbox("Workflow", ["HBF", "HAF"])
 
-# ---------------- SIDEBAR DATA ENTRY ----------------
+# ---------------- DATA ENTRY ----------------
 st.sidebar.markdown("## Process Input")
-
-save_clicked = False
 
 for process in processes:
     st.sidebar.markdown(f"**{process}**")
@@ -98,17 +96,6 @@ for process in processes:
     start = st.sidebar.date_input(f"Start {process}", key=f"start_{process}")
     end = st.sidebar.date_input(f"End {process}", key=f"end_{process}")
 
-    # SAVE BUTTON (NEW SAFE CONTROL)
-    if st.sidebar.button(f"Save {process}", key=f"save_{process}"):
-        if start and end:
-            c.execute(
-                "REPLACE INTO process_data VALUES (?,?,?,?)",
-                (selected_well, process, start.isoformat(), end.isoformat())
-            )
-            conn.commit()
-            save_clicked = True
-
-    # LEGACY AUTO-SAVE (kept for compatibility)
     if start and end:
         c.execute(
             "REPLACE INTO process_data VALUES (?,?,?,?)",
@@ -169,21 +156,21 @@ if not progress_df.empty:
     c1, c2, c3 = st.columns(3)
     c1.metric("Wells", len(progress_df))
     c2.metric("Avg Cycle", f"{progress_df['Total days on Well'].mean():.1f}")
-    c3.metric("On Target", f"{len(progress_df[progress_df['Total days on Well'] <= 120])}")
+    c3.metric("On Target", len(progress_df[progress_df["Total days on Well"] <= 120]))
 
 # ---------------- COLUMN 1 ----------------
 col1, col2, col3 = st.columns([2,6,2])
 
 col1.subheader(f"Well: {selected_well}")
 
-current = progress_df[progress_df["Well"] == selected_well]
+selected = progress_df[progress_df["Well"] == selected_well]
 
-if not current.empty:
-    r = current.iloc[0]
+if not selected.empty:
+    r = selected.iloc[0]
     col1.write(f"Process: {r['Current Process']}")
     col1.write(f"Remaining: {r['Current Process Remaining Days']}")
 
-# ---------------- GANTT (FIXED) ----------------
+# ---------------- GANTT (FIXED PER WELL) ----------------
 col2.subheader("Gantt View")
 
 df_gantt = pd.read_sql(
@@ -197,16 +184,38 @@ df_gantt["end_date"] = pd.to_datetime(df_gantt["end_date"], errors="coerce")
 df_gantt = df_gantt.dropna()
 
 if not df_gantt.empty:
-    fig = px.timeline(df_gantt, x_start="start_date", x_end="end_date", y="process", color="process")
+    fig = px.timeline(
+        df_gantt,
+        x_start="start_date",
+        x_end="end_date",
+        y="process",
+        color="process"
+    )
     col2.plotly_chart(fig, use_container_width=True)
 
-# ---------------- KPI CHART ----------------
+# ---------------- KPI CHART (FIXED KPI LINE ORDER) ----------------
 if not chart_df.empty:
     fig2 = go.Figure()
 
     for w in chart_df["Well"].unique():
         d = chart_df[chart_df["Well"] == w]
         fig2.add_bar(x=d["Process"], y=d["Duration"], name=w)
+
+    # ✔ FIXED KPI LINE (CORRECT ORDER)
+    ordered_processes = processes
+    kpi_values = [kpi_dict.get(p, 0) for p in ordered_processes]
+
+    fig2.add_trace(go.Scatter(
+        x=ordered_processes,
+        y=kpi_values,
+        mode="lines+markers",
+        name="KPI",
+        line=dict(color="red", dash="dash")
+    ))
+
+    fig2.update_layout(
+        xaxis=dict(categoryorder="array", categoryarray=processes)
+    )
 
     col2.plotly_chart(fig2, use_container_width=True)
 
